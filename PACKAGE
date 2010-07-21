@@ -1,0 +1,51 @@
+package: Shotgun Integration
+author: Tweak Software
+organization: Tweak Software
+contact: support@tweaksoftware.com
+version: 1.30
+requires: ''
+rv: 3.8.6
+url: http://www.tweaksoftware.com/rv/packages/shotgun.html
+
+modes: 
+  - file: shotgun_mode.mu
+    menu: ''
+    shortcut: ''
+    event: ''
+    load: immediate
+  - file: shotgun_info_mode.mu
+    menu: ''
+    shortcut: ''
+    event: ''
+    load: immediate
+
+description: |
+
+  <p>
+  This release of the RV/Shotgon integration package provides the following features:
+  <ul>
+  <li>Click on links in Shotgun to play media</li>
+  <li>Exchange URLs that will load the designated shotgun versions
+  into RV with one click.</li>
+  <li>Play sets of media from any Shotgun page displaying
+  Versions.</li>
+  <li>Compare two or more Versions in RV after selecting in
+  Shotgun.</li>
+  <li>Play media arranged in Shotgun Playlists.</li>
+  <li>Display Shotgun information (from any shotgun entities) in
+  RV.</li>
+  <li>From RV, go directly to Shotgun pages corresponding to loaded
+  media.</li>
+  <li>From RV, update media to the latest version registered in
+  Shotgun.</li>
+  <li>Store Shotgun information in RV session files.</li>
+  <li>Swap media type (movies or hires frames or whatever) from within
+  RV.</li>
+  <li>Use editorial information stored in Shotgun to adjust media EDL
+  in RV, or to find and load media corresponding to neighboring shots.
+  </li>
+  <li>Configurability.&nbsp; After a configuration step, the
+  integration package should be able to handle most shotgun
+  schemas.</li>
+  </ul>
+  </p>

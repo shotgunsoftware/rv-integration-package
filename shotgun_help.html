@@ -1,0 +1,1524 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.5.3" />
+<title>RV/Shotgun Integration (v1.30)</title>
+<style type="text/css">
+/* Debug borders */
+p, li, dt, dd, div, pre, h1, h2, h3, h4, h5, h6 {
+/*
+  border: 1px solid red;
+*/
+}
+
+body {
+  margin: 1em 5% 1em 5%;
+}
+
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:visited {
+  color: fuchsia;
+}
+
+em {
+  font-style: italic;
+  color: navy;
+}
+
+strong {
+  font-weight: bold;
+  color: #083194;
+}
+
+tt {
+  color: navy;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #527bbd;
+  font-family: sans-serif;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+h1, h2, h3 {
+  border-bottom: 2px solid silver;
+}
+h2 {
+  padding-top: 0.5em;
+}
+h3 {
+  float: left;
+}
+h3 + * {
+  clear: left;
+}
+
+div.sectionbody {
+  font-family: serif;
+  margin-left: 0;
+}
+
+hr {
+  border: 1px solid silver;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+ul, ol, li > p {
+  margin-top: 0;
+}
+
+pre {
+  padding: 0;
+  margin: 0;
+}
+
+span#author {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+span#email {
+}
+span#revnumber, span#revdate, span#revremark {
+  font-family: sans-serif;
+}
+
+div#footer {
+  font-family: sans-serif;
+  font-size: small;
+  border-top: 2px solid silver;
+  padding-top: 0.5em;
+  margin-top: 4.0em;
+}
+div#footer-text {
+  float: left;
+  padding-bottom: 0.5em;
+}
+div#footer-badges {
+  float: right;
+  padding-bottom: 0.5em;
+}
+
+div#preamble {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+div.tableblock, div.imageblock, div.exampleblock, div.verseblock,
+div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
+div.admonitionblock {
+  margin-top: 1.0em;
+  margin-bottom: 1.5em;
+}
+div.admonitionblock {
+  margin-top: 2.0em;
+  margin-bottom: 2.0em;
+  margin-right: 10%;
+  color: #606060;
+}
+
+div.content { /* Block element content. */
+  padding: 0;
+}
+
+/* Block element titles. */
+div.title, caption.title {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.0em;
+  margin-bottom: 0.5em;
+}
+div.title + * {
+  margin-top: 0;
+}
+
+td div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content + div.title {
+  margin-top: 0.0em;
+}
+
+div.sidebarblock > div.content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+
+div.listingblock > div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock, div.verseblock {
+  padding-left: 1.0em;
+  margin-left: 1.0em;
+  margin-right: 10%;
+  border-left: 5px solid #dddddd;
+  color: #777777;
+}
+
+div.quoteblock > div.attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock > pre.content {
+  font-family: inherit;
+}
+div.verseblock > div.attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+/* DEPRECATED: Pre version 8.2.7 verse style literal block. */
+div.verseblock + div.attribution {
+  text-align: left;
+}
+
+div.admonitionblock .icon {
+  vertical-align: top;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #527bbd;
+  padding-right: 0.5em;
+}
+div.admonitionblock td.content {
+  padding-left: 0.5em;
+  border-left: 3px solid #dddddd;
+}
+
+div.exampleblock > div.content {
+  border-left: 3px solid #dddddd;
+  padding-left: 0.5em;
+}
+
+div.imageblock div.content { padding-left: 0; }
+span.image img { border-style: none; }
+a.image:visited { color: white; }
+
+dl {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+dt {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  font-style: normal;
+  color: navy;
+}
+dd > *:first-child {
+  margin-top: 0.1em;
+}
+
+ul, ol {
+    list-style-position: outside;
+}
+ol.arabic {
+  list-style-type: decimal;
+}
+ol.loweralpha {
+  list-style-type: lower-alpha;
+}
+ol.upperalpha {
+  list-style-type: upper-alpha;
+}
+ol.lowerroman {
+  list-style-type: lower-roman;
+}
+ol.upperroman {
+  list-style-type: upper-roman;
+}
+
+div.compact ul, div.compact ol,
+div.compact p, div.compact p,
+div.compact div, div.compact div {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
+
+div.tableblock > table {
+  border: 3px solid #527bbd;
+}
+thead, p.table.header {
+  font-family: sans-serif;
+  font-weight: bold;
+}
+tfoot {
+  font-weight: bold;
+}
+td > div.verse {
+  white-space: pre;
+}
+p.table {
+  margin-top: 0;
+}
+/* Because the table frame attribute is overriden by CSS in most browsers. */
+div.tableblock > table[frame="void"] {
+  border-style: none;
+}
+div.tableblock > table[frame="hsides"] {
+  border-left-style: none;
+  border-right-style: none;
+}
+div.tableblock > table[frame="vsides"] {
+  border-top-style: none;
+  border-bottom-style: none;
+}
+
+
+div.hdlist {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+div.hdlist tr {
+  padding-bottom: 15px;
+}
+dt.hdlist1.strong, td.hdlist1.strong {
+  font-weight: bold;
+}
+td.hdlist1 {
+  vertical-align: top;
+  font-style: normal;
+  padding-right: 0.8em;
+  color: navy;
+}
+td.hdlist2 {
+  vertical-align: top;
+}
+div.hdlist.compact tr {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.comment {
+  background: yellow;
+}
+
+.footnote, .footnoteref {
+  font-size: 0.8em;
+}
+
+span.footnote, span.footnoteref {
+  vertical-align: super;
+}
+
+#footnotes {
+  margin: 20px 0 20px 0;
+  padding: 7px 0 0 0;
+}
+
+#footnotes div.footnote {
+  margin: 0 0 5px 0;
+}
+
+#footnotes hr {
+  border: none;
+  border-top: 1px solid silver;
+  height: 1px;
+  text-align: left;
+  margin-left: 0;
+  width: 20%;
+  min-width: 100px;
+}
+
+
+@media print {
+  div#footer-badges { display: none; }
+}
+
+div#toc {
+  margin-bottom: 2.5em;
+}
+
+div#toctitle {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 1.0em;
+  margin-bottom: 0.1em;
+}
+
+div.toclevel1, div.toclevel2, div.toclevel3, div.toclevel4 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+div.toclevel2 {
+  margin-left: 2em;
+  font-size: 0.9em;
+}
+div.toclevel3 {
+  margin-left: 4em;
+  font-size: 0.9em;
+}
+div.toclevel4 {
+  margin-left: 6em;
+  font-size: 0.9em;
+}
+/* Workarounds for IE6's broken and incomplete CSS2. */
+
+div.sidebar-content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+div.sidebar-title, div.image-title {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  margin-top: 0.0em;
+  margin-bottom: 0.5em;
+}
+
+div.listingblock div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock-attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+pre.verseblock-content {
+  font-family: inherit;
+}
+div.verseblock-attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+
+div.exampleblock-content {
+  border-left: 3px solid #dddddd;
+  padding-left: 0.5em;
+}
+
+/* IE6 sets dynamically generated links as visited. */
+div#toc a:visited { color: blue; }
+</style>
+<script type="text/javascript">
+/*<![CDATA[*/
+window.onload = function(){asciidoc.footnotes(); asciidoc.toc(4);}
+var asciidoc = {  // Namespace.
+
+/////////////////////////////////////////////////////////////////////
+// Table Of Contents generator
+/////////////////////////////////////////////////////////////////////
+
+/* Author: Mihai Bazon, September 2002
+ * http://students.infoiasi.ro/~mishoo
+ *
+ * Table Of Content generator
+ * Version: 0.4
+ *
+ * Feel free to use this script under the terms of the GNU General Public
+ * License, as long as you do not remove or alter this notice.
+ */
+
+ /* modified by Troy D. Hanson, September 2006. License: GPL */
+ /* modified by Stuart Rackham, 2006, 2009. License: GPL */
+
+// toclevels = 1..4.
+toc: function (toclevels) {
+
+  function getText(el) {
+    var text = "";
+    for (var i = el.firstChild; i != null; i = i.nextSibling) {
+      if (i.nodeType == 3 /* Node.TEXT_NODE */) // IE doesn't speak constants.
+        text += i.data;
+      else if (i.firstChild != null)
+        text += getText(i);
+    }
+    return text;
+  }
+
+  function TocEntry(el, text, toclevel) {
+    this.element = el;
+    this.text = text;
+    this.toclevel = toclevel;
+  }
+
+  function tocEntries(el, toclevels) {
+    var result = new Array;
+    var re = new RegExp('[hH]([2-'+(toclevels+1)+'])');
+    // Function that scans the DOM tree for header elements (the DOM2
+    // nodeIterator API would be a better technique but not supported by all
+    // browsers).
+    var iterate = function (el) {
+      for (var i = el.firstChild; i != null; i = i.nextSibling) {
+        if (i.nodeType == 1 /* Node.ELEMENT_NODE */) {
+          var mo = re.exec(i.tagName);
+          if (mo && (i.getAttribute("class") || i.getAttribute("className")) != "float") {
+            result[result.length] = new TocEntry(i, getText(i), mo[1]-1);
+          }
+          iterate(i);
+        }
+      }
+    }
+    iterate(el);
+    return result;
+  }
+
+  var toc = document.getElementById("toc");
+  var entries = tocEntries(document.getElementById("content"), toclevels);
+  for (var i = 0; i < entries.length; ++i) {
+    var entry = entries[i];
+    if (entry.element.id == "")
+      entry.element.id = "_toc_" + i;
+    var a = document.createElement("a");
+    a.href = "#" + entry.element.id;
+    a.appendChild(document.createTextNode(entry.text));
+    var div = document.createElement("div");
+    div.appendChild(a);
+    div.className = "toclevel" + entry.toclevel;
+    toc.appendChild(div);
+  }
+  if (entries.length == 0)
+    toc.parentNode.removeChild(toc);
+},
+
+
+/////////////////////////////////////////////////////////////////////
+// Footnotes generator
+/////////////////////////////////////////////////////////////////////
+
+/* Based on footnote generation code from:
+ * http://www.brandspankingnew.net/archive/2005/07/format_footnote.html
+ */
+
+footnotes: function () {
+  var cont = document.getElementById("content");
+  var noteholder = document.getElementById("footnotes");
+  var spans = cont.getElementsByTagName("span");
+  var refs = {};
+  var n = 0;
+  for (i=0; i<spans.length; i++) {
+    if (spans[i].className == "footnote") {
+      n++;
+      // Use [\s\S] in place of . so multi-line matches work.
+      // Because JavaScript has no s (dotall) regex flag.
+      note = spans[i].innerHTML.match(/\s*\[([\s\S]*)]\s*/)[1];
+      noteholder.innerHTML +=
+        "<div class='footnote' id='_footnote_" + n + "'>" +
+        "<a href='#_footnoteref_" + n + "' title='Return to text'>" +
+        n + "</a>. " + note + "</div>";
+      spans[i].innerHTML =
+        "[<a id='_footnoteref_" + n + "' href='#_footnote_" + n +
+        "' title='View footnote' class='footnote'>" + n + "</a>]";
+      var id =spans[i].getAttribute("id");
+      if (id != null) refs["#"+id] = n;
+    }
+  }
+  if (n == 0)
+    noteholder.parentNode.removeChild(noteholder);
+  else {
+    // Process footnoterefs.
+    for (i=0; i<spans.length; i++) {
+      if (spans[i].className == "footnoteref") {
+        var href = spans[i].getElementsByTagName("a")[0].getAttribute("href");
+        href = href.match(/#.*/)[0];  // Because IE return full URL.
+        n = refs[href];
+        spans[i].innerHTML =
+          "[<a href='#_footnote_" + n +
+          "' title='View footnote' class='footnote'>" + n + "</a>]";
+      }
+    }
+  }
+}
+
+}
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="header">
+<h1>RV/Shotgun Integration (v1.30)</h1>
+<div id="toc">
+  <div id="toctitle">Table of Contents</div>
+  <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
+</div>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<style type="text/css">
+    a:link {
+        color: blue;
+        color:#4444dd;
+    }
+    a:visited {
+        color: darkgray;
+        color: #666666;
+    }
+    a:hover {
+        color: #ff5555;
+    }
+</style>
+<div class="paragraph"><p>&#169; 2010 <a href="http://tweaksoftware.com">Tweak Software</a></p></div>
+</div>
+</div>
+<h2 id="_quick_start">Quick Start</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The quickest possible route to seeing what RV and Shotgun can do
+together is to <a href="#general_install">setup RV 3.8.6 as the rvlink
+protocol handler</a> then <a href="#demo_setup">use the demo shotgun site
+we&#8217;ve set up</a>.</p></div>
+</div>
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Because production tracking and media playback are both so
+ubiquitous in the production workflow, tightly integrating Shotgun
+and RV holds the promise of making almost every part of your
+workflow a little bit more efficient.</p></div>
+<div class="paragraph"><p>This first release of the RV/Shotgon integration package includes
+the following features:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Click on links in Shotgun to play media
+</p>
+</li>
+<li>
+<p>
+Exchange URLs that will load the designated shotgun versions into RV with one click
+</p>
+</li>
+<li>
+<p>
+Play sets of media from any Shotgun page displaying Versions
+</p>
+</li>
+<li>
+<p>
+Compare two or more Versions in RV after selecting in Shotgun
+</p>
+</li>
+<li>
+<p>
+Play media arranged in Shotgun Playlists
+</p>
+</li>
+<li>
+<p>
+Display Shotgun information (from any shotgun entities) in RV
+</p>
+</li>
+<li>
+<p>
+From RV, go directly to Shotgun pages corresponding to loaded media
+</p>
+</li>
+<li>
+<p>
+From RV, update media to the latest version registered in Shotgun
+</p>
+</li>
+<li>
+<p>
+Store Shotgun information in RV session files
+</p>
+</li>
+<li>
+<p>
+Swap media type (movies or hires frames or whatever) from within RV
+</p>
+</li>
+<li>
+<p>
+Use editorial information stored in Shotgun to adjust media EDL in RV, or to find and load media corresponding to neighboring shots
+</p>
+</li>
+<li>
+<p>
+Configurability.&nbsp; After a configuration step, the integration package should be able to handle most shotgun schemas
+</p>
+</li>
+</ul></div>
+</div>
+<h2 id="_installation">Installation</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The most important part of getting the RV/Shotgun integration
+package working is the custom config module, which may require some
+back-and-forth to get working the first time.  But much of the
+following can be completed before the config module is ready.</p></div>
+<div class="paragraph"><p><a id="general_install"></a></p></div>
+<h3 id="_general_installation">General Installation</h3><div style="clear:left"></div>
+<div class="paragraph"><p>There are a couple different ways to use the integration package but
+in all cases the following steps need to be completed first.</p></div>
+<h4 id="_rv_3_8_6">RV 3.8.6</h4>
+<div class="paragraph"><p>Make sure you have RV 3.8.6 or later installed (Any OS).
+As always you can download RV
+<a href="http://www.tweaksoftware.com/downloads">here</a>.</p></div>
+<h4 id="_register_rvlink_protocol_handler">Register RVLINK Protocol Handler</h4>
+<div class="paragraph"><p>The Shotgun integration relies on the general <em>rvlink</em> functionality
+added in RV 3.8 that allows RV to act as a protocol handler for
+<tt>rvlink://</tt> URLs.  The registration of the protocol handler
+depends on the OS (and the desktop environment).  That process is
+described in this Knowledge Base
+<a href="http://tweaksoftware.zendesk.com/forums/55304/entries/74814">Article</a>.</p></div>
+<div class="paragraph"><p>Once the protocol handler is registered, you can test it with the
+links on
+<a href="http://tweaksoftware.com/rvlink-test-page">this page</a>.</p></div>
+<div class="paragraph"><p><a id="package_install"></a></p></div>
+<h4 id="_install_shotgun_integration_package">Install Shotgun Integration Package</h4>
+<div class="paragraph"><p>The shotgun integration package comes as a zip file (<tt>shotgun.zip</tt>).
+To install it,</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Save it anywhere (don&#8217;t unzip it)
+</p>
+</li>
+<li>
+<p>
+Start RV and go to the <em>Packages</em> tab of the <em>Preferences</em> dialog
+</p>
+</li>
+<li>
+<p>
+Click <em>Add Package</em>, browse to your saved package, choose a location for the package
+</p>
+</li>
+<li>
+<p>
+Make sure both the <em>Install</em> and <em>Load</em> boxes are checked
+</p>
+</li>
+<li>
+<p>
+Restart RV
+</p>
+</li>
+</ol></div>
+<div class="paragraph"><p><a id="demo_setup"></a></p></div>
+<h3 id="_rv_shogun_evaluation_using_demo_site">RV/Shogun Evaluation Using Demo Site</h3><div style="clear:left"></div>
+<div class="paragraph"><p>After completing the <a href="#general_install"><strong>General Installation</strong></a> steps described above, if
+you don&#8217;t actually have Shotgun set up yet, or you&#8217;d like to see how
+RV and Shotgun can work together without fiddling with your shotgun
+instance, you can evaluate the integration with some test data as follows:</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Start RV and set the <em>config style</em> to &#8220;demo&#8221; (<em>Shotgun</em> &#8594; <em>Preferences</em> &#8594; <em>Set Shotgun Config Style</em>)
+</p>
+</li>
+<li>
+<p>
+Point your browser at the BBB_Short project on the demo site
+<a href="https://rvdemo.shotgunstudio.com/page/1096">https://rvdemo.shotgunstudio.com/page/1096</a>.  You can use the
+user/password <tt>rvdemo</tt>/<tt>rvdemo007</tt>.
+</p>
+</li>
+</ol></div>
+<div class="paragraph"><p>At this point you can use the <em>Play In RV</em> and <em>Compare In RV</em>
+Shotgun action menu items, and try out the Items on the Shotgun menu
+in RV, including viewing shotgun information in the heads-up display
+with the Shotgun Info Widget.  But it&#8217;s a lot more fun with actual
+media.</p></div>
+<div class="paragraph"><p>To install the media package, down load it from
+<a href="http://tweaksoftware.com/static/downloads/rvshotgundemo.zip">here</a>
+and unpack it into a directory of your choice (on linux or mac) or
+to <tt>C:\</tt> on windows.   On linux or mac, add a symbolic link
+from <tt>/rvshotgundemo</tt> to the location where you unpacked the media.</p></div>
+<div class="paragraph"><p>Now RV should find the appropriate media for all the BBB_Short
+Versions.</p></div>
+<h4 id="_site_wide_demo">Site-Wide Demo</h4>
+<div class="paragraph"><p>If you want to demo site-wide without everyone having to set their
+"Config Style preference, you can</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Find the file <em>shotgun_fields_config_demo.mu</em> in
+<em>RV_HOME</em><tt>/plugins/Mu</tt> or wherever you installed the <tt>shotgun.zip</tt>
+package.
+</p>
+</li>
+<li>
+<p>
+Copy the demo file to <tt>shotgun_fields_config_custom.mu</tt>
+</p>
+</li>
+<li>
+<p>
+Edit <tt>shotgun_fields_config_custom.mu</tt> and change the module
+definition line to
+</p>
+<div class="listingblock">
+<div class="content">
+<pre><tt>module: shotgun_fields_config_custom</tt></pre>
+</div></div>
+</li>
+</ol></div>
+<h4 id="_switching_to_a_8220_real_8221_install">Switching To A &#8220;Real&#8221; Install</h4>
+<div class="paragraph"><p>After a successful demo, please see the following section,
+<em>Site-Specific Custom Configuration</em> in order to move to using your
+own Shotgun instance in place of the demo site.</p></div>
+<h3 id="_site_specific_custom_configuration">Site-Specific Custom Configuration</h3><div style="clear:left"></div>
+<div class="paragraph"><p>After completing the <a href="#general_install"><strong>General Installation</strong></a>
+steps described above, if
+you want to use RV with your Shotgun instance, you&#8217;ll need a custom
+config module (this module adapts the actual arrangement of fields
+and entities in your Shotgun database to RV&#8217;s idea of the &#8220;standard&#8221; fields).
+If you&#8217;re not already in communication with us about this, please
+<a href="mailto:support@shotgunsoftware.zendesk.com">email us</a>.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph"><p>In order to understand what RV can and cannot do in terms of adapting
+to arbitrary Shotgun configurations, a good first step is to review
+the information in this <a href="#survey">Appendix</a></p></div>
+</td>
+</tr></table>
+</div>
+<h4 id="_create_shotgun_script_key">Create Shotgun "Script Key"</h4>
+<div class="paragraph"><p>In order for RV to authenticate itself to the shotgun server, it
+needs to know the <em>script key</em>.  To set this up, a shotgun admin
+needs to add a shotgun script called &#8220;rv&#8221;.  That means go to the
+<em>Scripts</em> page listed in the <em>Admin</em> section of the standard
+navigation bar, click the <em>+</em> (Add Script) button to add a
+script, and name the script &#8220;rv&#8221;.  The key for this
+script (in the <em>Application Key</em> field) will be passed to RV from
+the custom config module.</p></div>
+<div class="paragraph"><p>Note that if the script key is incorrect, you&#8217;ll get an error about
+&#8220;Can&#8217;t authenticate script rv&#8221;.</p></div>
+<h4 id="_turn_on_rv_action_items_in_shotgun">Turn On RV Action Items In Shotgun</h4>
+<div class="paragraph"><p>Contact <a href="mailto:support@shotgunsoftware.zendesk.com">Shotgun Support</a>
+and ask them to activate the <em>Play in RV</em> and <em>Compare in RV</em> action
+menu items in your Shotgun instance.</p></div>
+<h4 id="_install_your_config_module">Install Your Config Module</h4>
+<div class="paragraph"><p>To use a custom config module we built for you, you need to
+install it in RV&#8217;s <em>MU_MODULE_PATH</em>.  You can add your own directories to
+this path, but by default it includes a location in your home
+directory, and one the directory in which RV is installed
+(<em>RV_HOME</em>):</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+ 
+</dt>
+<dd>
+<div class="hdlist"><table>
+<tr>
+<td class="hdlist1">
+Linux
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+<tt>~/.rv/Mu</tt><br />
+<tt><em>RV_HOME</em>/plugins/Mu</tt>
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+Windows
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+<tt>~/Application Support/RV/Mu</tt><br />
+<tt><em>RV_HOME</em>/plugins/Mu</tt>
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+Mac
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+<tt>~/Library/Application Support/RV/Mu</tt><br />
+<tt><em>RV_HOME</em>/PlugIns/Mu</tt>
+</p>
+</td>
+</tr>
+</table></div>
+</dd>
+</dl></div>
+<div class="paragraph"><p>If we&#8217;ve provided you with a custom config module (it&#8217;ll be called
+&#8220;shotgun_fields_config_custom.mu&#8221;), you just need to copy it
+to somewhere in the <em>MU_MODULE_PATH</em> and it should be picked up
+by the RV/Shotgun integration package at runtime.</p></div>
+<h3 id="_testing_and_troubleshooting_your_installation">Testing And Troubleshooting Your Installation</h3><div style="clear:left"></div>
+<div class="paragraph"><p>If the <em>Play in RV</em> and <em>Compare in RV</em> items on the Shotgun action
+menu seem to work perfectly, then you&#8217;re done.  But if not, it&#8217;s
+useful to separate the testing of the integration code from the
+protocol handler. .  You can assemble your own
+rvlink url and test the Shotgun integration from the command line like so:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>% rv "rvlink:// -play -l -eval 'shotgun.sessionFromVersionIDs(int[] {VID});'"</tt></pre>
+</div></div>
+<div class="paragraph"><p>Where <tt>VID</tt> should be replaced by the ID of any valid Version
+entity in your Shotgun database.</p></div>
+<div class="paragraph"><p>To make sure you&#8217;re loading the right config module and connecting
+to the right server, you can bring up RV&#8217;s Console window (<em>Windows</em>
+&#8594; <em>Console</em>).  You should see something like:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>INFO: loaded shotgun config module 'shotgun_fields_config_demo'
+      (/Users/alan/Library/Application Support/RV/Mu/shotgun_fields_config_demo.mu)
+INFO: using shotgun server 'https://rvdemo.shotgunstudio.com'
+INFO: Loaded "shotgun_mode"
+INFO: Loaded "shotgun_info_mode"</tt></pre>
+</div></div>
+<div class="paragraph"><p>To test the protocol handler registration independent of the
+integration code, try the links on
+<a href="http://tweaksoftware.com/rvlink-test-page">this page</a>.</p></div>
+</div>
+<h2 id="_usage">Usage</h2>
+<div class="sectionbody">
+<h3 id="_heads_up_8220_shotgun_info_widget_8221">Heads-Up &#8220;Shotgun Info Widget&#8221;</h3><div style="clear:left"></div>
+<div class="paragraph"><p><em>In Progress</em></p></div>
+<h3 id="_switching_media_types">Switching Media Types</h3><div style="clear:left"></div>
+<div class="paragraph"><p><em>In Progress</em></p></div>
+<h3 id="_changing_the_edit">Changing The Edit</h3><div style="clear:left"></div>
+<div class="paragraph"><p><em>In Progress</em></p></div>
+<h3 id="_new_sessions">New Sessions</h3><div style="clear:left"></div>
+<div class="paragraph"><p><em>In Progress</em></p></div>
+<h3 id="_preferences">Preferences</h3><div style="clear:left"></div>
+<div class="paragraph"><p><em>In Progress</em></p></div>
+</div>
+<h2 id="_faq">FAQ</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><em>In Progress</em></p></div>
+<div class="paragraph"><p><a id="survey"></a></p></div>
+</div>
+<h2 id="_appendix_shotgun_entity_field_survey">Appendix: Shotgun Entity/Field Survey</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>In order to use the RV Shotgun integration package, we need to be
+able to translate your shotgun structure into something that looks
+&#8220;standard&#8221; to RV.  In general, the config module is very flexible
+and can make use of information stored in arbitrarilly-named fields
+on arbitrary entities.  But there are some restrictions as follows:</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<strong>The <em>entity</em> field of a <em>Version</em> must be connected to a <em>Shot</em> or an <em>Asset</em></strong>
+</dt>
+<dd>
+<p>
+    Otherwise we won&#8217;t be able to find the latest version of a shot
+    or asset, or all the versions of a given shot or asset, and in the case of shot&#8217;s we won&#8217;t be able to put the
+    Version in context with it&#8217;s neighbors in the cut.
+</p>
+</dd>
+<dt class="hdlist1">
+<strong>Some field of a <em>Version</em> must be connected to a <em>Project</em> entity</strong>
+</dt>
+<dd>
+<p>
+    So that several kinds of searchs can be limited to a single Project.
+</p>
+</dd>
+<dt class="hdlist1">
+<strong>Some field of a <em>Version</em> must be connected to a <em>Human User</em> entity</strong>
+</dt>
+<dd>
+<p>
+    So that notes can be addressed properly by default.
+</p>
+</dd>
+<dt class="hdlist1">
+<strong>An integer order in the cut must be computable from a field on the <em>Shot</em></strong>
+</dt>
+<dd>
+<p>
+    Otherwise we won&#8217;t be able to find the neighbors of the Version
+    of a Shot in order to play it in context.
+</p>
+</dd>
+<dt class="hdlist1">
+<strong>Some field of a <em>Shot</em> must be connected to some entity that represents a sequence</strong>
+</dt>
+<dd>
+<p>
+    Otherwise we won&#8217;t be able to find the neighbors of the Version
+    of a Shot in order to play it in context.
+</p>
+</dd>
+</dl></div>
+<div class="paragraph"><p>For us to get started writing a config module for your shotgun
+setup, we need some information about the way you store information
+in shotgon.  Hence the following survey.  Please answer the
+questions below as completely as you can.  In particular when we ask
+for name/type, please include the name <strong>and</strong> the type !</p></div>
+<div class="paragraph"><p>You can send your survey answers to
+<a href="mailto:support@shotgunsoftware.zendesk.com">Shotgun Support</a>
+to start the process.</p></div>
+<div class="paragraph"><p>&#160;</p></div>
+<hr />
+<div class="paragraph"><p>&#160;</p></div>
+<div class="paragraph"><p>For convenience we refer to each of these bits of information as a
+"field", but remember that they can actually be computed from
+several fields or even from an environment variable or other outside
+source.  For each field that RV can make use of in the shotgun
+integration, we list</p></div>
+<div class="hdlist"><table>
+<tr>
+<td class="hdlist1">
+Internal Field Name
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+The name that RV uses to refer to this bit of info.
+In general the actual name of the field is not important (can be
+easily set in the config module).
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+Recommended Entity
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+The type of entity we&#8217;re thinking is most
+appropriate for this bit of info.  We&#8217;ll say <strong>required</strong> in the case
+where we think the bit must be on a particular entity.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+Recommended Field Name
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+In most cases the field name can really be
+anything, but if you have no preference or you&#8217;re just setting up a
+project/pipeline, you can use this name so that the shotgun
+integration will work with minimal configuration.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+Interpretation
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+The &#8220;meaning&#8221; of this bit of info for RV.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+Your Field ?
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+This is where you tell us about the
+shotgun structure you use. In your answer, please list
+<em>field name</em>, <em>field type</em>, <em>entity type</em> that holds the field, and how that entity is linked to the
+<em>Version</em> entity.
+</p>
+</td>
+</tr>
+</table></div>
+<div class="paragraph"><p>If you don&#8217;t store that information directly, feel free to write
+more about how other fields on other entities could be used to
+assemble or compute the required information.
+For example, if your <em>Version</em> doesn&#8217;t have something like a
+<em>maxFrame</em>,
+but it has a <em>firstFrame</em> and a <em>mediaDuration</em>, then obviously
+<em>maxFrame</em>
+can be computed from those fields.</p></div>
+<div class="paragraph"><p>Also, if some information is not stored because it always has a
+certain value, just tell us what value we can assume in those cases.</p></div>
+<div class="paragraph"><p>&#160;</p></div>
+<div class="paragraph"><div class="title">Media Info</div><p>The most fundamental point of the RV/Shotgun integration is to give you
+good access to your media.  We assume that for each version (take)
+there may be any number of media types (movie, high-res frames,
+low-res frames, etc).  These types can differ in resolution, file
+format, etc.  <strong>But</strong> they should all represent the same frame range
+(though some may have slates and some not).</p></div>
+<div class="paragraph"><p>For these three items, we need the corresponding info for each type
+of media you register "per-version" (movie, high-res frames, etc).  So if you register a movie and
+a dpx sequence, we&#8217;re asking below for field information for path,
+aspect ratio, and slate for both media types (IE <strong>six</strong> fields).</p></div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>mt_</tt><em>type</em></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Version</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_path_to_frames</tt>, <tt>sg_path_to_movie</tt>, etc.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">Filesystem path to the media.  If this is a sequence, ideally the path should be in a form RV can use directly (like <tt>foo.#.dpx</tt>).  But if that&#8217;s not convenient, the config module can usualy adapt the path for RV&#8217;s use.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>mt_</tt><em>type</em><tt>_aspect</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Version</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_frames_aspect</tt>, <tt>sg_movie_aspect</tt>, etc.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">Pixel aspect ratio of media.  This can often be hard-coded to 1.0, or come from a field on the Project.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>mt_</tt><em>type</em><tt>_hasSlate</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Version</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_frames_slate</tt>, <tt>sg_movie_slate</tt>, etc.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">If <em>true</em> the media has a slate frame</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="paragraph"><p>&#160;</p></div>
+<div class="paragraph"><div class="title">Editorial Cut Info</div><p>The integration package can show your version media &#8220;in the cut&#8221; if
+it can retrieve the appropriate editorial information
+(<em>frameIn</em>,
+<em>frameOut</em>).  In order to make use of this information it needs to know the
+actual frame range of the version&#8217;s media (<em>frameMin</em>, <em>frameMax</em>).</p></div>
+<div class="paragraph"><p>So, in general we should have, for any particular Version,
+<em>frameMin</em> &lt; = <em>frameIn</em> &lt; = <em>frameOut</em> &lt; = <em>frameMax</em></p></div>
+<div class="paragraph"><p>A key assumption that RV is making when using this information is
+that it applies to all media types.  That is, for a given Version,
+all types of media represent the <strong>same set of frames</strong> (though some may
+have slates and some not, as described above).</p></div>
+<div class="paragraph"><p>The In/Out info is in general per-cut and can therefore be stored on
+the <em>Shot</em> or something else that is not Version-specific.  On the
+other hand, the Min/Max info depends on what frames were actually
+rendered, and may be different in different departments, etc, so
+this info should be stored on the <em>Version</em> (or some other per-version
+entity).</p></div>
+<div class="paragraph"><p>Note that in this version of the integration package, we&#8217;re
+assuming that for RV&#8217;s purposes there is only one cut (the current
+cut).  In the future we may support versioned cut information (most
+likely in the form of Cut and CutItem entities).</p></div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>frameIn</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Shot</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_cut_in</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">Number of first frame of this shot to appear in the current edit</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>frameOut</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Shot</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_cut_out</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">Number of last frame of this shot to appear in the current edit</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>frameMin</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Version</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_first_frame</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">Number of first non-slate frame in media</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>frameMax</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Version</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_last_frame</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">Number of last frame in media</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="paragraph"><p>&#160;</p></div>
+<div class="paragraph"><div class="title">Editorial Ordering Info</div><p>The other bit of information we need to show multiple shots &#8220;in the
+cut&#8221; is the actual order of those shots.  This is an integer that
+may be unique over the whole project, but must be unique in a given
+sequence.</p></div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>cutOrder</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Shot (<strong>required</strong>)</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_cut_order</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">An integer indicating the order of this shot in the current editorial cut  (Can be the order within the sequence, or within the entire project)</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="paragraph"><p>If your ordering is &#8220;per-sequence&#8221; RV also needs to know to which
+sequence each <em>Version</em> belongs.   Several studios link shots to
+<em>Scene</em>
+entities that function like sequences in this way, and that will
+work fine too.</p></div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sequence</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Shot</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_sequence</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">A link to an entity to which all shots in a particular sequence will be linked</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="paragraph"><p>&#160;</p></div>
+<div class="paragraph"><div class="title">Department Info</div><p>The usual Departments are things like &#8220;layout&#8221;, &#8220;animation&#8221;, and
+&#8220;lighting&#8221; but could also include &#8220;pipeline stages&#8221; that are smaller
+than departments, like &#8220;lighting QA&#8221;.</p></div>
+<div class="tableblock">
+<table rules="all"
+width="80%"
+frame="border"
+cellspacing="0" cellpadding="4">
+<col width="22%" />
+<col width="77%" />
+<tbody>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Internal Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>department</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Entity</em></p></td>
+<td align="left" valign="top"><p class="table">Version</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Recommended Field Name</em></p></td>
+<td align="left" valign="top"><p class="table"><tt>sg_sequence</tt></p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Interpretation</em></p></td>
+<td align="left" valign="top"><p class="table">A string that &#8220;labels&#8221; this version with the department or pipeline stage that produced it.</p></td>
+</tr>
+<tr>
+<td align="left" valign="top"><p class="table"><em>Your Field ?</em></p></td>
+<td align="left" valign="top"><p class="table"><em>(Please give name, type, entity, linkage to Version)</em></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="paragraph"><p>Another common way to store department information per-version is to
+link each version to a <em>Task</em> entity and use the <tt>sg_task_type</tt> field on
+the task to hold the department.</p></div>
+<div class="paragraph"><p><strong><em>How do you store information that describes the &#8220;Department&#8221; for
+each Version ?</em></strong></p></div>
+<div class="paragraph"><p>&#160;</p></div>
+<div class="paragraph"><div class="title">Extra Info</div><p>What other fields would you like information gathered from and
+displayed in the <em>Shotgun Info Widget</em> in RV ?  Just list the <strong>field
+name</strong>, <strong>field type</strong>, and <strong>entity type</strong> of each.  If the field&#8217;s
+entity is not <em>Version</em>, please describe how the entity is connected
+to the version</p></div>
+<div class="paragraph"><p>&#160;</p></div>
+<hr />
+<div class="paragraph"><p>&#160;</p></div>
+<div class="paragraph"><p>That&#8217;s it, Thanks!  Remember, send your answers to the above to
+Shotgun Support to start the process of creating a custom
+configuration module for your Shotgun instance.</p></div>
+</div>
+<h2 id="_appendix_customizing_the_package">Appendix: Customizing the Package</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The config module (the module file called
+<tt>shotgun_fields_config_</tt><em>config_name</em><tt>.mu</tt>) is designed to be
+customized per-site.  Here are some pointers if you want to do that:</p></div>
+<div class="dlist"><dl>
+<dt class="hdlist1">
+<strong>Copy your config module</strong>
+</dt>
+<dd>
+<p>
+Copy your current config module to a new new name, say
+<tt>shotgun_fields_config_studioX.mu</tt> and place it somewhere in your
+<em>MU_MODULE_PATH.</em>
+</p>
+</dd>
+<dt class="hdlist1">
+<strong>Change the module&#8217;s internal name</strong>
+</dt>
+<dd>
+<p>
+The name of the actual module object inside the module file must
+match the filename.  That is, the line in your new module that
+starts with <tt>module:</tt> must look like <tt>module:
+shotgun_fields_config_studioX</tt> if that is the name of the file.
+</p>
+</dd>
+<dt class="hdlist1">
+<strong>Set your config style preference</strong>
+</dt>
+<dd>
+<p>
+In RV go to the <em>Shotgun&#8594;Preference&#8594;Set Shotgun Config Style</em> item, and
+type just the last part of the name (&#8220;studioX&#8221; in this case).
+</p>
+</dd>
+<dt class="hdlist1">
+<strong>Check that the new module is loading</strong>
+</dt>
+<dd>
+<p>
+Start RV and open the Console window.  At the top of the window you
+should see something like:
+</p>
+<div class="listingblock">
+<div class="content">
+<pre><tt>INFO: loaded shotgun config module 'shotgun_fields_config_studioX' (/path/to/your/shotgun_fields_config_studioX.mu)
+INFO: using shotgun server 'https://studioX.shotgunstudio.com'
+INFO: Loaded "shotgun_mode"
+INFO: Loaded "shotgun_info_mode"</tt></pre>
+</div></div>
+</dd>
+</dl></div>
+<div class="paragraph"><p><em>In progress</em></p></div>
+</div>
+<h2 id="_appendix_localizing_media_paths">Appendix: Localizing Media Paths</h2>
+<div class="sectionbody">
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+Use <em>PATHSWAP</em> variables in the path values of fields in shotgun.
+This is nice because it requires no changes on the rv side.  Note
+that before you see the path in rv (for example, in the shotgun info
+widget) the local <em>PATHSWAP</em> variable will have been swapped in, so
+you see the local path.
+</p>
+</li>
+<li>
+<p>
+Modify the <tt>fieldsCompute()</tt> function in your shotgun custom
+config module to change the paths however you want.  Then the
+behavior of this function can depend on a local env var or some other
+way of telling what site it&#8217;s running at.
+</p>
+</li>
+<li>
+<p>
+Write a separate mode that
+will get an event whenever a new source is loaded, and have an
+oportunity to rewrite the file name.
+</p>
+</li>
+</ol></div>
+<div class="paragraph"><p><em>In progress</em></p></div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2010-03-16 18:35:13 PDT
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<style type="text/css"> 
+    body 
+    { 
+        font-family: Helvetica, Geneva, Arial, SunSans-Regular, sans-serif; 
+        color: #999999; 
+        background-color: #1d1d1d 
+    } 
+    a
+    {
+        color: #999999; 
+        font-size: 150%;
+    }
+
+</style>
+<html> <head> <title>FOO: THE NEW BAR</title> <script> 
+function ShotgunInfoWidget ()
+{
+    rvsession.evaluate("shotgun.theMode().toggleInfoWidget(nil);")
+}
+function UpdateShotgunInfo (all)
+{
+    if(all)
+    {
+       rvsession.evaluate("shotgun.theMode().updateShotgunInfo(\"all\",nil);")
+    }
+    else
+    {
+       rvsession.evaluate("shotgun.theMode().updateShotgunInfo(\"one\",nil);")
+    }
+}
+function UpdateToLatestVersion (all)
+{
+    if(all)
+    {
+        rvsession.evaluate("shotgun.theMode().swapLatestVersions(\"all\",nil);")
+    }
+    else
+    {
+        rvsession.evaluate("shotgun.theMode().swapLatestVersions(\"one\",nil);")
+    }
+}
+function AddAudio ()
+{
+    //no op;
+}
+function SwapInMovie (all)
+{
+    if(all)
+    {
+        rvsession.evaluate("shotgun.theMode(). swapMedia(\"all\", \"Path to Movie\",  nil);")
+    }
+    else
+    {
+        rvsession.evaluate("shotgun.theMode(). swapMedia(\"one\", \"Path to Movie\",  nil);")
+    }
+}
+
+function changeEdit(all, pref)
+{
+    if(all)
+    {
+        rvsession.evaluate("shotgun.theMode().changeEdit(\"all\"," + pref + ", nil);")
+    }
+    else
+    {
+        rvsession.evaluate("shotgun.theMode().changeEdit(\"one\"," + pref + ", nil);")
+    }
+}
+
+function CopyVersionURL ()
+{
+    rvsession.evaluate("shotgun.theMode().copyUrl(\"version\",nil);")
+}
+function IsolateShot ()
+{
+    rvsession.evaluate("shotgun.theMode().isolateShot(nil);")
+}
+function IsolateShotAndNeighbors ()
+{
+    rvsession.evaluate("shotgun.theMode().isolateShotAndNeighbors(nil);")
+}
+function GoToVersionPage ()
+{
+    rvsession.evaluate("shotgun.theMode().goToVersionPage(nil);")
+}
+function GoToShotPage ()
+{
+    rvsession.evaluate("shotgun.theMode().goToShotPage(nil);")
+}
+function SwapInFrames (all)
+{
+    if(all)
+    {
+        rvsession.evaluate("shotgun.theMode().swapMedia(\"all\", \"Path to Frames\" ,nil);")
+    }
+    else
+    {
+        rvsession.evaluate("shotgun.theMode().swapMedia(\"one\", \"Path to Frames\" ,nil);")
+    }
+}
+function CopySessionURL ()
+{
+    rvsession.evaluate("shotgun.theMode().copyUrl(\"session\",nil);")
+}
+function CopySyncSessionURL ()
+{
+    rvsession.evaluate("shotgun.theMode().copyUrl(\"session-sync\",nil);")
+}
+</script></head>
+<body>
+
+<a href="javascript:ShotgunInfoWidget()">Shotgun Info Widget</a><br>
+<a href="javascript:UpdateShotgunInfo(false)">Update Shotgun Info</a><br>
+<a href="javascript:UpdateToLatestVersion(false)">Update To Latest Version</a><br>
+<a href="javascript:AddAudio()">Add Audio</a><br>
+<a href="javascript:SwapInFrames(false)">Swap In Frames</a><br>
+<a href="javascript:SwapInMovie(false)">Swap In Movie</a><br>
+<a href="javascript:changeEdit(false, 0)">Edit To Full Length</a><br>
+<a href="javascript:changeEdit(false, 1)">Edit To Full Without Slate</a><br>
+<a href="javascript:changeEdit(false, 2)">Edit To Cut Length</a><br>
+<a href="javascript:CopyVersionURL()">Copy Version URL</a><br>
+<a href="javascript:IsolateShot()">Isolate Shot</a><br>
+<a href="javascript:IsolateShotAndNeighbors()">Isolate Shot And Neighbors</a><br>
+<a href="javascript:GoToVersionPage()">Go To Version Page</a><br>
+<a href="javascript:GoToShotPage()">Go To Shot Page</a><br>
+<a href="javascript:UpdateShotgunInfo(true)">Update Shotgun Info</a><br>
+<a href="javascript:UpdateToLatestVersions(ture)">Update To Latest Versions</a><br>
+<a href="javascript:AddAudio()">Add Audio</a><br>
+<a href="javascript:SwapInFrames(true)">Swap In Frames</a><br>
+<a href="javascript:SwapInMovie(true)">Swap In Movies</a><br>
+<a href="javascript:changeEdit(true,0)">Edit To Full Length</a><br>
+<a href="javascript:changeEdit(true,1)">Edit To Full Without Slate</a><br>
+<a href="javascript:changeEdit(true,2)">Edit To Cut Length</a><br>
+<a href="javascript:CopySessionURL()">Copy Session URL</a><br>
+<a href="javascript:CopySyncSessionURL()">Copy Sync Session URL</a><br>
+</body></html>
