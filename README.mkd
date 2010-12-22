@@ -1,3 +1,6 @@
+## Version Information
+This version is only compatible with RV v3.8. The integration package for RV 3.10 will be posted in the near future.
+
 # RV + Shotgun Integration Package
 
 The Shotgun + RV integration makes it super easy to find and play media in RV right from Shotgun.  And once you are in RV, you now have access to a new toolset that lets you modify the playback based on information in Shotgun, or deep link right into Shotgun to take Notes or view more information.  A "Shotgun-aware" URL from RV let's you send around links that will launch people right into RV to view the work.
