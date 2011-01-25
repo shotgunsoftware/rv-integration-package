@@ -10,7 +10,7 @@ use Value;
 
 StringMap := shotgun_stringMap.StringMap;
 
-\: deb(void; string s) { if (false) print(s); }
+\: deb(void; string s) { if (false) print("fields: " + s); }
 
 class: FieldsConfig
 {
@@ -260,15 +260,6 @@ function: mediaTypes (string[]; )
     return types;
 }
 
-function: mediaTypeFromPath (string; string path, StringMap info)
-{
-    for_each (mt; mediaTypes())
-    {
-        if (path == mediaTypePath(mt, info)) return mt;
-    }
-    return "ERROR:noSuchPath";
-}
-
 function: mediaTypePath (string; string mediaType, StringMap info)
 {
     let name = "mt_" + mediaType;
@@ -313,10 +304,7 @@ function: mediaTypeFromPath (string; string path, StringMap info)
 
     for_each (t; mediaTypes())
     {
-        if (mediaTypePath (t, info) == path)
-        {
-            return t;
-        }
+        if (mediaTypePath (t, info) == path) return t;
     }
 
     return "<no_type>";
@@ -353,10 +341,11 @@ function: updateSourceInfo (void; int[] sourceNums, StringMap[] infos)
     for_each (info; infos) deb ("    info: %s\n" % info.toString("        "));
     for_index (i; sourceNums)
     {
-        string infoProp = "source%03d.tracking.info" % sourceNums[i];
+        string infoProp = "sourceGroup%06d_source.tracking.info" % sourceNums[i];
         try { commands.newProperty (infoProp, commands.StringType, 1); }
         catch(...) { ; }
-        commands.setStringProperty (infoProp, infos[i].toStringArray(), true);
+        try { commands.setStringProperty (infoProp, infos[i].toStringArray(), true); }
+        catch(...) { ; }
     }
     updateSourceInfoStatus (sourceNums, "good");
 }
@@ -366,7 +355,7 @@ function: updateSourceInfoStatus (void; int[] sourceNums, string status)
     deb ("updateSourceInfoStatus sourceNums %s status %s\n" % (sourceNums, status));
     for_index (i; sourceNums)
     {
-        string statusProp = "source%03d.tracking.infoStatus" % sourceNums[i];
+        string statusProp = "sourceGroup%06d_source.tracking.infoStatus" % sourceNums[i];
         try { commands.newProperty (statusProp, commands.StringType, 1); }
         catch(...) { ; }
         commands.setStringProperty (statusProp, string[] {status}, true);
@@ -377,7 +366,7 @@ function: infoFromSource (StringMap; int sourceNum)
 {
     try
     {
-        string[] info = commands.getStringProperty("source%03d.tracking.info" % sourceNum);
+        string[] info = commands.getStringProperty("sourceGroup%06d_source.tracking.info" % sourceNum);
         StringMap sm = StringMap(info);
         for_each (k; sm.keys())
         {
@@ -423,7 +412,7 @@ function: infoStatusFromSource (string; int sourceNum)
 {
     try 
     {
-        return commands.getStringProperty("source%03d.tracking.infoStatus" % sourceNum).back();
+        return commands.getStringProperty("sourceGroup%06d_source.tracking.infoStatus" % sourceNum).back();
     }
     catch (...) { return nil; }
 }

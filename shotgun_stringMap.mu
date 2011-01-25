@@ -48,11 +48,10 @@ module: shotgun_stringMap
 
         method: toString(string; string indent="    ")
         {
-            string out;
-            out += "%d keys: \n" % _numItems;
+            string out = "%d keys: \n" % _numItems;
             for_each (k; keys())
             {
-                out += "%s%s -> %s\n" % (indent, k, find(k));
+                out = out + ("%s%s -> %s\n" % (indent, k, find(k)));
             }
             return out;
         }

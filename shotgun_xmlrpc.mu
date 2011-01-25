@@ -363,9 +363,24 @@ function: addInFlight(int hash)
 
 function: removeInFlight(int hash)
 {
+    let newList = (int,float)[]();
+    for_index (i; inFlight)
+    {
+        if (inFlight[i]._0 != hash) newList.push_back(inFlight[i]);
+    }
+    inFlight = newList;
+    /*
+    XXX
+    should be able to do the below.  the fact that we can't indicates a bug in mu, i think.
     let index = -1;
-    for_index(i; inFlight) if (inFlight[i]._0 == hash) index = i;
+    for_index(i; inFlight) 
+    {
+        print ("******************     i %s\n" % i);
+        print ("******************     tuple %s\n" % string(inFlight[i]));
+        if (inFlight[i]._0 == hash) index = i;
+    }
     if (index != -1) inFlight.erase(index,1);
+    */
 }
 
 function: inFlightStats((int, float); )
@@ -451,7 +466,8 @@ function: call (void;
     httpPost(url,
              [("Content-Type", "text/xml")],
              xml,
-             revent, aevent, eevent);
+             revent, aevent, eevent,
+             true /* ignoreSslErrors */);
 }
 
 \: test (void;)

@@ -13,7 +13,7 @@ require shotgun_fields;
 StringMap := shotgun_stringMap.StringMap;
 EntityFields := shotgun_api.EntityFields;
 
-\: deb(void; string s) { if (false) print(s); }
+\: deb(void; string s) { if (false) print("state: " + s); }
 
 function: lookupServer((string, string); string defaultURL)
 {
@@ -156,7 +156,7 @@ class: ShotgunState
                     ("Proxy-Connection", "keep-alive"),
                 ],
                 text,
-                revent, aevent, eevent);
+                revent, aevent, eevent, true /* ignoreSslErrors */);
     }
 
 
@@ -593,8 +593,8 @@ class: ShotgunState
         let coFieldValues = fields.extractField(shotgun_fields.fieldNameMap.find("cutOrder"));
 
         deb ("    checking %d possible shots\n" % coFieldValues.size());
-        let maxMin = 0,
-            minMax = 0,
+        let maxMin = -1,
+            minMax = -1,
             maxMinID = -1,
             minMaxID = -1;
         for_index (i; coFieldValues)
@@ -604,7 +604,7 @@ class: ShotgunState
                 co = shotgun_fields.actualCutOrder(cos);
 
             deb ("    checking id %s co %s cos %s cov %s\n" % (id, co, cos, cov));
-            if (co <= 0) continue;
+            if (co < 0) continue;
             //  XXX  IMD uses "cutOrders" that have holes in them so
             //  the matching has to be fuzzier than the below.
             //

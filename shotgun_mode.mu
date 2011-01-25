@@ -1,4 +1,3 @@
-global (void;) FUNCPOINTER = nil;
 
 module: shotgun_mode {
 
@@ -25,7 +24,7 @@ require io;
 EntityFields := shotgun_api.EntityFields;
 StringMap := shotgun_stringMap.StringMap;
 
-\: deb(void; string s) { if (false) print(s); }
+\: deb(void; string s) { if (false) print("mode: " +s); }
 
 class: ShotgunMinorMode : MinorMode
 //
@@ -56,6 +55,12 @@ class: ShotgunMinorMode : MinorMode
     bool _webLoading;
     float _webProgress;
     int _currentSource;
+    StringMap[] _postProgLoadInfos;
+    int[] _postProgLoadSourceNums;
+    bool _postProgLoadTurnOnWipes;
+
+    bool _rvVersionGTE3_10_4;
+    bool _rvVersionGTE3_10_5;
 
     //
     //  Preferences
@@ -371,6 +376,21 @@ class: ShotgunMinorMode : MinorMode
         ;
     }
 
+    method: sourcePattern (string; string sub=nil)
+    {
+        string ret = nil;
+        if (sub eq nil) ret = "sourceGroup%06d_source";
+        else            ret = "sourceGroup%06d_" + sub;
+        deb ("sourcePattern '%s' -> '%s'\n" % (sub, ret));
+
+        return ret;
+    }
+
+    method: sourcePropName (string; int sourceNum, string prop, string sub=nil)
+    {
+        (sourcePattern(sub) % sourceNum) + "." + prop;
+    }
+
     method: toggleInfoWidget(void; Event e)
     {
         shotgun_info_mode.theMode().toggle();
@@ -475,7 +495,7 @@ class: ShotgunMinorMode : MinorMode
             return;
         }
 
-        string movieProp = "source%03d.media.movie" % sourceNum;
+        string movieProp = sourcePropName (sourceNum, "media.movie");
         let oldMedia = getStringProperty(movieProp).front();
         StringMap info = shotgun_fields.infoFromSource (sourceNum);
         string newMedia;
@@ -508,38 +528,23 @@ class: ShotgunMinorMode : MinorMode
         let mode = cacheMode();
         setCacheMode(CacheOff);
 
-        //  cache edl
-        int[] edlFrames  = getIntProperty("sequence.edl.frame");
-        int[] edlIns     = getIntProperty("sequence.edl.in");
-        int[] edlOuts    = getIntProperty("sequence.edl.out");
-        int[] edlSources = getIntProperty("sequence.edl.source");
-        int[] edlIncs    = getIntProperty("sequence.edl.inc");
-
-        //  do the swap
-        deb ("    swapping %s -> %s\n" % (oldMedia, newMedia));
         try 
         {
+            setSourceMedia (sourcePattern() % sourceNum, string[] { newMedia });
             _setMediaType (mediaType, sourceNum);
-            relocateSource (oldMedia, newMedia);
-        } 
+            setIntProperty (sourcePropName (sourceNum, "group.rangeOffset"), int[] {ro});
+            let paProp = sourcePropName (sourceNum, "pixel.aspectRatio", "transform2D");
+            deb ("    setting %s to %s\n" % (paProp, float[] {pa}));
+            setFloatProperty (paProp, float[] {pa});
+        }
         catch (object obj)
         {
-            //relocateSource (oldMedia, newMedia);
-            //addSource ("smptebars,start=%s,end=%s.movieproc" % (ins[i],outs[i]), "shotgun");
             extra_commands.displayFeedback("Can't open '%s'" % newMedia);
             print("ERROR: Can't open '%s'\n" % newMedia);
+
+            try { setSourceMedia (sourcePattern() % sourceNum, string[] { oldMedia }); }
+            catch (...) {;}
         }
-        setIntProperty ("source%03d.group.rangeOffset" % sourceNum, int[] {ro});
-        deb ("    setting transform2D%03d.pixel.aspectRatio to %s\n" % (sourceNum, float[] {pa}));
-        setFloatProperty ("transform2D%03d.pixel.aspectRatio" % sourceNum, float[] {pa});
-
-        //  restore edl
-        setIntProperty("sequence.edl.frame", edlFrames, true);
-        setIntProperty("sequence.edl.in", edlIns, true);
-        setIntProperty("sequence.edl.out", edlOuts, true);
-        setIntProperty("sequence.edl.source", edlSources, true);
-        setIntProperty("sequence.edl.inc", edlIncs, true);
-
         setCacheMode(mode);
         redraw();
     }
@@ -559,6 +564,7 @@ class: ShotgunMinorMode : MinorMode
 
             swapMediaFromInfo (media, index);
         }
+        deb ("swapMedia done\n");
     }
 
     method: projectIDFromSource((int,string); int source)
@@ -590,7 +596,7 @@ class: ShotgunMinorMode : MinorMode
 
     method: _setMediaType (void; string mt, int sourceNum)
     {
-        let mtProp = ("source%03d.tracking.mediaType" % sourceNum);
+        let mtProp = sourcePropName(sourceNum, "tracking.mediaType");
 
         try { newProperty (mtProp, StringType, 1); }
         catch(...) { ; }
@@ -600,8 +606,8 @@ class: ShotgunMinorMode : MinorMode
 
     method: _getMediaType (string; int sourceNum)
     {
-        let mtProp = ("source%03d.tracking.mediaType" % sourceNum),
-            mt     = string(nil);
+        let mtProp = sourcePropName(sourceNum, "tracking.mediaType");
+        string mt = nil;
 
         try { mt = getStringProperty(mtProp).front(); }
         catch (...) {;}
@@ -609,7 +615,7 @@ class: ShotgunMinorMode : MinorMode
         if (mt eq nil) 
         {
 
-            let movieProp = ("source%03d.media.movie" % sourceNum),
+            let movieProp = sourcePropName(sourceNum, "media.movie"),
                 oldMedia = getStringProperty(movieProp).front(),
                 oldInfo = shotgun_fields.infoFromSource (sourceNum);
 
@@ -625,26 +631,26 @@ class: ShotgunMinorMode : MinorMode
 
         try
         {
-        let mode = cacheMode();
-        setCacheMode(CacheOff);
+            let mode = cacheMode();
+            setCacheMode(CacheOff);
 
-        for_index (i; sourceNums)
-        {
-            let sn = sourceNums[i],
-                info = infos[i];
+            for_index (i; sourceNums)
+            {
+                let sn = sourceNums[i],
+                    info = infos[i];
 
-            //
-            //  Don't do anything if we're alread at the latest version.
-            //
-            if (info.findInt("id") == versionIDFromSource(sn)) continue;
+                //
+                //  Don't do anything if we're alread at the latest version.
+                //
+                if (info.findInt("id") == versionIDFromSource(sn)) continue;
 
-            shotgun_fields.updateSourceInfo (int[] {sn}, StringMap[] {info});
+                shotgun_fields.updateSourceInfo (int[] {sn}, StringMap[] {info});
 
-            swapMediaFromInfo (_getMediaType(sn), sn);
-        }
+                swapMediaFromInfo (_getMediaType(sn), sn);
+            }
 
-        setCacheMode(mode);
-        redraw();
+            setCacheMode(mode);
+            redraw();
 
         }
         catch (object obj)
@@ -672,22 +678,33 @@ class: ShotgunMinorMode : MinorMode
                 latestID = info.findInt("id"),
                 latestDeptID = latestID,
                 id = 0,
-                linkType = string(nil),
                 deptMatch = false;
 
+            string linkType = nil;
+
+            deb ("    sh %s (sh parts %s) as %s latestID %s\n" % (sh, shotgun_fields.extractEntityValueParts(sh), as, latestID));
             if (sh neq nil)
             {
+                deb ("    sh neq nil\n");
                 id = shotgun_fields.extractEntityValueParts(sh)._2;
+                deb ("    setting linkType\n");
                 linkType = "shot";
+                deb ("    done setting linkType\n");
             }
             else 
             if (as neq nil)
             {
+                deb ("    as neq nil\n");
                 id = shotgun_fields.extractEntityValueParts(as)._2;
                 linkType = "asset";
             }
-            else continue;
+            else 
+            {
+                deb ("continuing\n");
+                continue;
+            }
 
+            deb ("    linkType %s\n" % linkType);
             StringMap latestInfo = nil, latestDeptInfo = nil;
 
             for_each (ci; collectedInfos)
@@ -701,6 +718,7 @@ class: ShotgunMinorMode : MinorMode
                 string dept = "None";
                 try { dept = ci.findString("department");} catch(...) {;};
 
+                deb ("        ciLinkID %s ciID %s dept %s\n" % (ciLinkID, ciID, dept));
                 if (ciLinkID == id)
                 {
                     if (ciID >= latestID)
@@ -769,70 +787,49 @@ class: ShotgunMinorMode : MinorMode
         if (_demoDockWidgetShown) then CheckedMenuState else UncheckedMenuState;
     }
 
-    method: sessionFromEDL (void; string[] media, string[] mediaTypes, int[] ro, float[] pas, int[] frames, int[] ins, int[] outs)
+    method: sessionFromEDL (void; string[] media, string[] mediaTypes, int[] ros, float[] pas, int[] frames, int[] ins, int[] outs)
     {
-        deb ("sessionFromEDL called media %s ro %s pas %s frames %s ins %s outs %s\n" % (media, ro, pas, frames, ins, outs));
-
-        for_index (i; media)
-        {
-            deb ("    adding source '%s'\n" % media[i]);
-            try { addSource (media[i], "shotgun"); }
-            catch (...) 
-            { 
-                addSource ("smptebars,start=%s,end=%s.movieproc" % (ins[i],outs[i]), "shotgun");
-                extra_commands.displayFeedback("Can't open '%s'" % media[i]); 
-                print("ERROR: Can't open '%s'\n" % media[i]);
-                //throw "Can't open '%s'" % media[i]; 
-            }
-            deb ("    adding source '%s' done\n" % media[i]);
-
-            _setMediaType (mediaTypes[i], i);
-            setIntProperty ("source%03d.group.rangeOffset" % i, int[] {ro[i]});
-            setFloatProperty ("transform2D%03d.pixel.aspectRatio" % i, float[] {pas[i]});
-        }
-        deb ("    sources added\n");
-        int[] sources, incs;
-        for (int i = 0; i < ins.size()-1; ++i)
-        {
-            sources.push_back (i);
-            incs.push_back (1);
-        }
-        sources.push_back (0);
-        incs.push_back (0);
+        deb ("sessionFromEDL called media %s ros %s pas %s frames %s ins %s outs %s\n" % (media, ros, pas, frames, ins, outs));
 
         let mode = cacheMode();
         setCacheMode(CacheOff);
 
-        /*
-        print ("EDL PROPS before ---------\n");
-        print ("frame  %s\n" % getIntProperty("sequence.edl.frame"));
-        print ("in     %s\n" % getIntProperty("sequence.edl.in"));
-        print ("out    %s\n" % getIntProperty("sequence.edl.out"));
-        print ("source %s\n" % getIntProperty("sequence.edl.source"));
-        print ("inc    %s\n" % getIntProperty("sequence.edl.inc"));
-        print ("--------------------------\n");
-        */
-        deb ("    setting EDL properties: frames %s source %s\n" % (frames, sources));
-        setIntProperty("sequence.edl.frame", frames, true);
-        setIntProperty("sequence.edl.in", ins, true);
-        setIntProperty("sequence.edl.out", outs, true);
-        setIntProperty("sequence.edl.source", sources, true);
-        setIntProperty("sequence.edl.inc", incs, true);
-        /*
-        print ("EDL PROPS after ----------\n");
-        print ("frame  %s\n" % getIntProperty("sequence.edl.frame"));
-        print ("in     %s\n" % getIntProperty("sequence.edl.in"));
-        print ("out    %s\n" % getIntProperty("sequence.edl.out"));
-        print ("source %s\n" % getIntProperty("sequence.edl.source"));
-        print ("inc    %s\n" % getIntProperty("sequence.edl.inc"));
-        print ("--------------------------\n");
-        */
+        if (!media.empty())
+        {
+            let args = string[]();
+            for_index (i; media)
+            {
+                args.push_back ("[");
+                args.push_back (media[i]);
+                args.push_back ("+ro");
+                args.push_back ("%s" % ros[i]);
+                args.push_back ("+pa");
+                args.push_back ("%s" % pas[i]);
+                args.push_back ("+in");
+                args.push_back ("%s" % ins[i]);
+                args.push_back ("+out");
+                args.push_back ("%s" % outs[i]);
+                args.push_back ("]");
+            }
+            let evalString = """
+                commands.addSources(%s, ""%s);
+                """ % (args, if (_rvVersionGTE3_10_5) then ", true" else "");
 
-        int beg = frames.front();
-        setFrameStart (beg);
-        setFrameEnd(frames.back() - 1);
-        setInPoint (beg);
-        setOutPoint (frames.back() - 1);
+            deb ("    addSources evalString %s\n" % evalString);
+            runtime.eval (evalString);
+
+            deb ("    sources added\n");
+        }
+        else
+        {
+            for (int i = 0; i < ins.size()-1; ++i)
+            {
+                let in  = ins[i],
+                    out = outs[i];
+                if (in  != int.max) setIntProperty (sourcePropName(i, "cut.in"),  int[] {in});
+                if (out != int.max) setIntProperty (sourcePropName(i, "cut.out"), int[] {out});
+            }
+        }
 
         setCacheMode(mode);
 
@@ -852,14 +849,6 @@ class: ShotgunMinorMode : MinorMode
         int[] edlIns; 
         int[] edlOuts;
         float[] edlPAs;
-
-        int[] existingIns;
-        int[] existingOuts;
-        if (rangePrefs neq nil)
-        {
-            existingIns     = getIntProperty("sequence.edl.in");
-            existingOuts    = getIntProperty("sequence.edl.out");
-        }
 
         for_index (i; infos)
         {
@@ -909,8 +898,8 @@ class: ShotgunMinorMode : MinorMode
             {
                 deb ("    keeping same edl info\n");
 
-                edlIns.push_back(existingIns[i]);
-                edlOuts.push_back (existingOuts[i]);
+                edlIns.push_back(int.max);
+                edlOuts.push_back (int.max);
             }
             else if (rangePref == Prefs.PrefLoadRangeFull)
             {
@@ -980,21 +969,23 @@ class: ShotgunMinorMode : MinorMode
 
         if (doCompare)
         {
-            setSessionType(StackSession);
-
             let p = _prefs.compareOp;
+            deb ("    doCompare mode %s" % p);
             if (p == Prefs.PrefCompareOpTiled) 
             {
-                setStringProperty("#RVComposite.composite.type", string[]{"tiled"});
+                setViewNode("defaultLayout");
+                setStringProperty("#RVLayoutGroup.layout.mode", string[]{"packed"});
             }
             else if (p == Prefs.PrefCompareOpOverWipe)
             {
-                setStringProperty("#RVComposite.composite.type", string[]{"over"});
-                rvui.toggleWipe();
+                setViewNode("defaultStack");
+                setStringProperty("#RVStack.composite.type", string[]{"over"});
+                _postProgLoadTurnOnWipes = true;
             }
             else if (p == Prefs.PrefCompareOpDiff)
             {
-                setStringProperty("#RVComposite.composite.type", string[]{"difference"});
+                setViewNode("defaultStack");
+                setStringProperty("#RVStack.composite.type", string[]{"difference"});
             }
             else print ("ERROR: bad compareOp pref %s\n" % p);
         }
@@ -1003,7 +994,8 @@ class: ShotgunMinorMode : MinorMode
         for_index (sourceNum; infos) sourceNums.push_back(sourceNum);
         deb ("    sourceNums %s, %s infos: \n" % (sourceNums, infos.size()));
         {for_each (i; infos) deb ("    %s\n" % i.toString("        "));}
-        shotgun_fields.updateSourceInfo (sourceNums, infos);
+        _postProgLoadInfos = infos;
+        _postProgLoadSourceNums = sourceNums;
 
         redraw();
 
@@ -1177,22 +1169,24 @@ class: ShotgunMinorMode : MinorMode
         if (which == "version")
         {
             let vName = versionNameFromSource (sourceNumFromSingleSource()),
-                vid = versionIDFromSource (sourceNumFromSingleSource());
+                vid = versionIDFromSource (sourceNumFromSingleSource()),
+                raw = " -play -l -eval 'shotgun.sessionFromVersionIDs(int[] {%d});'" % vid,
+                title = "Version %s" % vName;
 
-            let raw = " -play -l -eval 'shotgun.sessionFromVersionIDs(int[] {%d});'" % vid,
-                url = "";
             if (_prefs.redirectUrls)
             {
-                url = "%s/rvlink/baked/%s" % (_shotgunState._serverURL, _bake(raw));
+                let url = "%s/rvlink/baked/%s" % (_shotgunState._serverURL, _bake(raw));
+                /*
                 _textEdit.setPlainText (url);
                 _textEdit.selectAll();
                 _textEdit.copy();
                 print ("Version URL copied: %s\n" % url);
+                */
+                putUrlOnClipboard (url, title, false);
             }
             else 
             {
-                url = "rvlink://" + raw;
-                string title = "Version %s" % vName;
+                let url = "rvlink://" + raw;
                 putUrlOnClipboard (url, title);
             }
         }
@@ -1215,6 +1209,7 @@ class: ShotgunMinorMode : MinorMode
                 }
             }
             if (vids.empty()) return;
+            string simpleTitle = "Session with %d Versions" % vids.size();
 
             string insert =  "-play";
             if (which == "session-sync") 
@@ -1227,15 +1222,17 @@ class: ShotgunMinorMode : MinorMode
             if (_prefs.redirectUrls)
             {
                 url = "%s/rvlink/baked/%s" % (_shotgunState._serverURL, _bake(raw));
+                /*
                 _textEdit.setPlainText (url);
                 _textEdit.selectAll();
                 _textEdit.copy();
                 print ("Session URL copied: %s\n" % url);
+                */
+                putUrlOnClipboard (url, simpleTitle, false);
             }
             else 
             {
                 url = "rvlink://" + raw;
-                string simpleTitle = "Session with %d Versions" % vids.size();
                 if (which == "session-sync") simpleTitle = "Sync to Session with %d Versions" % vids.size();
                 putUrlOnClipboard (url, simpleTitle);
             }
@@ -1540,7 +1537,8 @@ class: ShotgunMinorMode : MinorMode
         """ 
         % name, ["commands"]);
         
-        return FUNCPOINTER;
+        //return FUNCPOINTER;
+        return nil;
     }
 
     method: webLoadProgress (void; int percent)
@@ -1987,7 +1985,7 @@ class: ShotgunMinorMode : MinorMode
 
     method: auxFilePath (string; string file)
     {
-        io.path.join(supportPath("shotgun_mode", "shotgun.zip"), file);
+        io.path.join(supportPath("shotgun_mode", "shotgun"), file);
     }
 
     method: _showHelpFile (void; Event event)
@@ -1999,6 +1997,31 @@ class: ShotgunMinorMode : MinorMode
             system.defaultWindowsOpen(wpath);
         }
         else openUrl("file://" + helpFile);
+    }
+
+    method: afterProgressiveLoading (void; Event event)
+    {
+        deb ("afterProgressiveLoading\n");
+
+        event.reject();
+
+        if (_postProgLoadInfos neq nil) 
+        {
+            deb ("    updating info\n");
+            shotgun_fields.updateSourceInfo (_postProgLoadSourceNums, _postProgLoadInfos);
+            deb ("    updating mediaTypes\n");
+            for_each (num; _postProgLoadSourceNums) 
+            {
+                try { _setMediaType (_prefs.loadMedia, num); }
+                catch (...) { ; }
+            }
+            _postProgLoadInfos = nil; 
+        }
+        if (_postProgLoadTurnOnWipes)
+        {
+            rvui.toggleWipe();
+            _postProgLoadTurnOnWipes = false;
+        }
     }
 
     method: ShotgunMinorMode (ShotgunMinorMode;)
@@ -2039,7 +2062,8 @@ class: ShotgunMinorMode : MinorMode
         init("Shotgun",
              nil,
              [("frame-changed", frameChanged, "Update frame"),
-              ("play-stop", frameChanged, "Update frame")],
+              ("play-stop", frameChanged, "Play stopped"),
+              ("after-progressive-loading", afterProgressiveLoading, "Update Infos After Load")],
              _buildMenu());
 
         _drawOnEmpty = true;
@@ -2050,6 +2074,21 @@ class: ShotgunMinorMode : MinorMode
         let mymain = mainWindowWidget();
         _textEdit = qt.QPlainTextEdit("", mymain);
         _textEdit.hide();
+
+        _postProgLoadInfos = nil;
+        _postProgLoadSourceNums = nil;
+        _postProgLoadTurnOnWipes = false;
+
+        let versionString = system.getenv("TWK_APP_VERSION"),
+            parts = versionString.split("."),
+            majVersion = int(parts[0]),
+            minVersion = int(parts[1]),
+            revision   = int(parts[2]);
+
+        _rvVersionGTE3_10_4 = ( (majVersion > 3) ||
+                                (majVersion == 3 && minVersion > 10) ||
+                                (majVersion == 3 && minVersion == 10 && revision >= 4));
+        _rvVersionGTE3_10_5 = (_rvVersionGTE3_10_4 && revision >= 5);
 
         if (false)
         {
@@ -2130,6 +2169,7 @@ class: ShotgunMinorMode : MinorMode
         m.show();
         */
 
+        let tmp = """
         if (false)
         {
         let m = mainWindowWidget();
@@ -2203,6 +2243,7 @@ class: ShotgunMinorMode : MinorMode
                 _notesWebView.load(url);
                 _notesDockWidget.show();
         */
+        """;
     }
 
     global int mycount = 0;
@@ -2365,6 +2406,7 @@ class: ShotgunMinorMode : MinorMode
 
 \: createMode (Mode;)
 {
+    deb ("creating ShotgunMinorMode\n");
     return ShotgunMinorMode();
 }
 
@@ -2380,6 +2422,7 @@ class: ShotgunMinorMode : MinorMode
     try
     {
         ShotgunMinorMode m = theMode();
+        rvui.clearEverything();
         m.sessionFromVersionIDs (ids);
     }
     catch (object obj)
@@ -2395,6 +2438,7 @@ class: ShotgunMinorMode : MinorMode
     try
     {
         ShotgunMinorMode m = theMode();
+        rvui.clearEverything();
         m.sessionFromVersionIDs (ids, true);
     }
     catch (object obj)

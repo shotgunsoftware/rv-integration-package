@@ -380,15 +380,16 @@ class: ShotgunServer
                   string entityType,
                   [string] fields,
                   EntityFieldsFunc Fcallback,
-                  Value filters = Struct( [("conditions", EmptyArray),
-                                           ("logical_operator", String("and"))] ),
+                  Value filters = nil,
                   int page = 1,
                   int numPerPage = 50)
     {
+        let myFilters = if (filters eq nil) then Struct( [("conditions", EmptyArray), ("logical_operator", String("and"))] ) else filters;
+
         entitiesSoFar = 0;
         _doFind (entityType,
                 fields,
-                filters,
+                myFilters,
                 Fcallback,
                 page,
                 numPerPage,
