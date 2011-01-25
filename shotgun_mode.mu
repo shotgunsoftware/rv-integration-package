@@ -496,7 +496,7 @@ class: ShotgunMinorMode : MinorMode
         }
 
         string movieProp = sourcePropName (sourceNum, "media.movie");
-        let oldMedia = getStringProperty(movieProp).front();
+        let oldMedia = getStringProperty(movieProp);
         StringMap info = shotgun_fields.infoFromSource (sourceNum);
         string newMedia;
         int frameMin = 0;
@@ -530,7 +530,12 @@ class: ShotgunMinorMode : MinorMode
 
         try 
         {
-            setSourceMedia (sourcePattern() % sourceNum, string[] { newMedia });
+            let sname = sourcePattern() % sourceNum; 
+            //setSourceMedia (sourcePattern() % sourceNum, string[] { newMedia });
+            setSourceMedia (sname, string[] { });
+            setStringProperty (sname + ".request.stereoViews", string[] {}, true);
+            addToSource (sname,  newMedia, "shotgun");
+
             _setMediaType (mediaType, sourceNum);
             setIntProperty (sourcePropName (sourceNum, "group.rangeOffset"), int[] {ro});
             let paProp = sourcePropName (sourceNum, "pixel.aspectRatio", "transform2D");
@@ -542,7 +547,7 @@ class: ShotgunMinorMode : MinorMode
             extra_commands.displayFeedback("Can't open '%s'" % newMedia);
             print("ERROR: Can't open '%s'\n" % newMedia);
 
-            try { setSourceMedia (sourcePattern() % sourceNum, string[] { oldMedia }); }
+            try { setSourceMedia (sourcePattern() % sourceNum, oldMedia); }
             catch (...) {;}
         }
         setCacheMode(mode);
@@ -800,7 +805,7 @@ class: ShotgunMinorMode : MinorMode
             for_index (i; media)
             {
                 args.push_back ("[");
-                args.push_back (media[i]);
+                args.push_back (shotgun_fields.extractLocalPathValue(media[i]));
                 args.push_back ("+ro");
                 args.push_back ("%s" % ros[i]);
                 args.push_back ("+pa");

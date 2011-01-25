@@ -221,6 +221,36 @@ function: actualCutOrder (int; string v)
 //  Convenience functions
 //
 
+function: swapSlashes (string; string in)
+{
+    return regex.replace("\\\\", in, "/");
+}
+
+function: extractLocalPathValue (string; string value)
+{
+    if (regex("\|").match(value) && regex("link_type_local").match(value))
+    {
+        deb ("extractLocalPathValue '%s'\n" % value);
+
+        let parts = value.split("|"),
+            osStr = runtime.build_os(),
+            prefStr = "local_path_" + (if (osStr == "LINUX") then "linux" else (if (osStr == "DARWIN") then "mac" else "windows")),
+            re = regex("^" + prefStr + "_(.*)");
+
+        deb ("    osStr '%s'\n" % osStr);
+        deb ("    prefStr '%s'\n" % prefStr);
+        deb ("    re '%s'\n" % re);
+        for_each (p; parts)
+        {
+            deb ("    checking '%s'\n" % p);   
+            if (re.match(p)) return swapSlashes(re.smatch(p)[1]);
+        }
+
+        return "no_local_path_for_" + osStr;
+    }
+    return swapSlashes(value);
+}
+
 function: extractEntityValueParts ((string,string,int); string value)
 {
     string name = nil;

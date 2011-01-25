@@ -2,10 +2,10 @@ package: Shotgun Integration
 author: Tweak Software
 organization: Tweak Software
 contact: support@tweaksoftware.com
-version: 1.32
+version: 1.33
 requires: ''
-rv: 3.10.5
-url: http://www.tweaksoftware.com/rv/packages/shotgun.html
+rv: 3.10.10
+url: http://www.tweaksoftware.com
 
 modes: 
   - file: shotgun_mode.mu
