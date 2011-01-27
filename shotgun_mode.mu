@@ -1065,7 +1065,7 @@ class: ShotgunMinorMode : MinorMode
                 let user  = info.find("user"),
                     name  = shotgun_fields.extractEntityValueParts(user)._0;
 
-                fullName = ""","addressings_to":[{"name":"%s, "}]""" % name;
+                fullName = ""","addressings_to":[{"name":"%s"}]""" % name;
             }
             catch (...) {;}
 
