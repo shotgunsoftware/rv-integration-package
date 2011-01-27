@@ -1,5 +1,7 @@
 ## Version Information
-This version requires RV version 3.10.5 or later.
+* v1.33+ requires RV version 3.10.10 or later
+* v1.32 requires RV version 3.10.5 or later
+* v1.30 requires RV version 3.8 (not compatible with RV 3.10 or later)
 
 # RV + Shotgun Integration Package
 
