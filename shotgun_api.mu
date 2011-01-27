@@ -16,6 +16,64 @@ is an entity represented as an array of (name, Value) pairs -- i.e. the
 fields. 
 """
 
+/* Example Use */
+
+/*
+
+ShotgunServer sg = ShotgunServer(URL, SCRIPT, KEY);
+
+\: deleteCB(void; bool ret) {
+    print("DEBUG: DELETED: %s\n" % ret);
+}
+
+\: updateCB(void; EntityFields fields) {
+    let descriptions = fields.extractStringField("description"),
+        ids = fields.extractIntField("id");
+    print("DEBUG: DESCRIPTIONS: %s\n" % descriptions);
+    print("DEBUG: IDS: %s\n" % ids);
+    sg.delete("Playlist", ids[0]._1, deleteCB);
+}
+
+\: createCB(void; EntityFields fields) {
+    let descriptions = fields.extractStringField("description"),
+        ids = fields.extractIntField("id");
+    print("DEBUG: DESCRIPTIONS: %s\n" % descriptions);
+    print("DEBUG: IDS: %s\n" % ids);
+    let data = Struct([("description", String("description part two"))]);
+    sg.update("Playlist", ids[0]._1, data, updateCB);
+}
+
+let data = Struct([("description", String("this is a description")),
+                   ("code", String("Test")),
+                   ("project", Struct([
+                            ("type", String("Project")),
+                            ("id", Int(106)),
+                           ]))
+           ]);
+
+sg.create("Playlist", data, nil, createCB);
+
+\: batchCB(void; Value responses) {
+    print("DEBUG: RESPONSES: %s\n" % responses);
+}
+
+let requests = Array([
+    Struct([
+        ("request_type", String("create")),
+        ("entity_type", String("Playlist")),
+        ("data", Struct([
+                    ("code", String("Test 1")),
+                    ("project", Struct([
+                             ("type", String("Project")),
+                             ("id", Int(106)),
+                            ]))
+                 ])),
+    ])]);
+
+sg.batch(requests, batchCB);
+
+*/
+
 class: EntityFields
 {
     Field               := (string, Value);
@@ -83,6 +141,14 @@ class: EntityFields
                     }
                 }
                 deb ("totalPages %s totalEntities %s thisPage %s\n" % (_totalPages, _totalEntities, _thisPage));
+            }
+            else
+            if (member._0 == "id")
+            {
+                // No paging, entity returned directly
+                FieldArray fields = FieldArray();
+                for_each (f; top) fields.push_back(f);
+                _entities.push_back(fields);
             }
 
         }
@@ -222,6 +288,8 @@ methods on this class are:
 class: ShotgunServer
 {
     EntityFieldsFunc := (void;EntityFields);
+    BoolFunc := (void; bool);
+    ValueFunc := (void; Value);
 
     string _url;
     string _script_name;
@@ -248,6 +316,15 @@ class: ShotgunServer
         call("read", [queryParam], F);
     }
 
+    method: _convertStructToFields(Value; Value v) {
+        // convert data into a list of {"field_name": field, "value": value} structs
+        let Struct s = v;
+        [Value] fields;
+        for_each(p; s)
+            fields = Struct([("field_name", String(p._0)), ("value", p._1)]) : fields;
+        return Array(fields);
+    }
+
     documentation: """
     find() takes the name of an entity followed by a list of strings
     indicating fields you want reported. Next is a callback function which
@@ -270,6 +347,7 @@ class: ShotgunServer
                   EntityFieldsFunc Fcallback,
                   int page,
                   int numPerPage,
+                  Value order,
                   EntityFields[] responses,
                   bool isRequest,
                   Value responseValue)
@@ -288,30 +366,23 @@ class: ShotgunServer
                 ++count;
             }
 
-            let paging = Struct( [ ("paging",
-                            Struct( [("current_page", Int(page)),
-                                        ("entities_per_page", Int(numPerPage))] )),
-                            ("filters", filters),
-                            ("type", String(entityType))
-                            ] );
-
+            let parts = [("paging", Struct([
+                                        ("current_page", Int(page)),
+                                        ("entities_per_page", Int(numPerPage))])),
+                         ("filters", filters),
+                         ("type", String(entityType))];
             if (0 != count)
-            {
-                paging = Struct( [ ("paging",
-                            Struct( [("current_page", Int(page)),
-                                        ("entities_per_page", Int(numPerPage))] )),
-                            ("filters", filters),
-                            ("type", String(entityType)),
-                            ("return_fields", Array(fieldList))
-                            ] );
-            }
+                parts = ("return_fields", Array(fieldList)) : parts;
+            if (order neq nil)
+                parts = ("sorts", order) : parts;
 
-            callRead(paging, _doFind (entityType,
+            callRead(Struct(parts), _doFind (entityType,
                     fields,
                     filters,
                     Fcallback,
                     page,
                     numPerPage,
+                    order,
                     responses,
                     false,));
         }
@@ -348,6 +419,7 @@ class: ShotgunServer
                             Fcallback,
                             p,
                             numPerPage,
+                            order,
                             responses,
                             true,
                             Nil);
@@ -382,7 +454,8 @@ class: ShotgunServer
                   EntityFieldsFunc Fcallback,
                   Value filters = nil,
                   int page = 1,
-                  int numPerPage = 50)
+                  int numPerPage = 50,
+                  Value order = nil)
     {
         let myFilters = if (filters eq nil) then Struct( [("conditions", EmptyArray), ("logical_operator", String("and"))] ) else filters;
 
@@ -393,9 +466,121 @@ class: ShotgunServer
                 Fcallback,
                 page,
                 numPerPage,
+                order,
                 EntityFields[](),
                 true,
                 Nil);
+    }
+
+    method: create (void; string entityType, Value data, [string] fields, EntityFieldsFunc Fcallback) {
+        // convert fields into xmlrpc friendly Values
+        [Value] fieldList;
+        for_each(f; fields)
+            fieldList = String(f) : fieldList;
+        // build the actual xmlrpc argument
+        let args = Struct([
+                        ("type", String(entityType)),
+                        ("fields", _convertStructToFields(data)),
+                        ("return_fields", if(fields neq nil) then Array(fieldList) else Array([String("id")])),
+                    ]);
+        // callback for response
+        \: _handleCreateResponse(void; Value responseValue) {
+            deb("_handleCreateResponse called: %s\n" % responseValue);
+            Fcallback(EntityFields(responseValue));
+            commands.redraw();
+        }
+        // do the call
+        call("create", [args], _handleCreateResponse);
+    }
+
+    method: update(void; string entityType, int entityId, Value data, EntityFieldsFunc Fcallback) {
+        let args = Struct([
+                        ("type", String(entityType)),
+                        ("id", Int(entityId)),
+                        ("fields", _convertStructToFields(data)),
+                   ]);
+        // callback for response
+        \: _handleUpdateResponse(void; Value responseValue) {
+            deb("_handleUpdateResponse called: %s\n" % responseValue);
+            Fcallback(EntityFields(responseValue));
+            commands.redraw();
+        }
+        // do the call
+        call("update", [args], _handleUpdateResponse);
+    }
+
+    method: delete(void; string entityType, int entityId, BoolFunc Fcallback) {
+        let args = Struct([
+                        ("type", String(entityType)),
+                        ("id", Int(entityId)),
+                   ]);
+        // callback for response
+        \: _handleDeleteResponse(void; Value responseValue) {
+            deb("_handleDeleteResponse called: %s\n" % responseValue);
+            let Struct [ (_, Bool ret) ] = responseValue;
+            Fcallback(ret);
+            commands.redraw();
+        }
+        // do the call
+        call("delete", [args], _handleDeleteResponse);
+    }
+
+    method: batch(void; Value requests, ValueFunc Fcallback) {
+        [Value] myRequests;
+        case(requests) {
+            Array a -> {
+                for_each(p; a) {
+                    let Struct request = p;
+                    string requestType;
+                    Value entityType;
+                    Value entityId;
+                    Value data;
+                    Value returnFields;
+                    for_each(q; request) {
+                        case(q._0) {
+                            "request_type" -> { let String temp = q._1; requestType = temp;}
+                            "entity_type" -> { entityType = q._1; }
+                            "entity_id" -> { entityId = q._1; }
+                            "data" -> { data = q._1; }
+                            "returnFields" -> { returnFields = q._1; }
+                        }
+                    } // end for_each(q, request)
+
+                    case(requestType) {
+                        "create" -> {
+                            let parts = [("request_type", String("create")),
+                                         ("type", entityType),
+                                         ("fields", _convertStructToFields(data))];
+                            if(returnFields neq nil)
+                                parts = ("return_fields", returnFields) : parts;
+                            myRequests = Struct(parts) : myRequests;
+                        } "update" -> {
+                            let arg = Struct([
+                                        ("request_type", String("update")),
+                                        ("type", entityType),
+                                        ("id", entityId),
+                                        ("fields", _convertStructToFields(data))]);
+                            myRequests = arg : myRequests;
+                        } "delete" -> {
+                            let arg = Struct([
+                                        ("request_type", String("delete")),
+                                        ("type", entityType),
+                                        ("id", entityId)]);
+                            myRequests = arg : myRequests;
+                        }
+                    } // end requestType case
+                } // end for_each(p, a)
+            } // end case Array a
+        } // end case(requests)
+        // callback for response
+        \: _handleBatchResponse(void; Value responseValue) {
+            deb("_handleBatchResponse called: %s\n" % responseValue);
+            // START HERE: Need a different callback type for batch returns
+            Fcallback(responseValue);
+            commands.redraw();
+        }
+        // do the call
+        call("batch", [Array(myRequests)], _handleBatchResponse);
     }
 
     method: __test (void;)
