@@ -220,7 +220,7 @@ function: parseResult (Value; string xml)
         while (state.line() != "</struct>")
         {
             state.nextIf("<member>");
-            let re = regex("<name>([^<]+)"),
+            let re = regex("<name>([^<]+)", 16),
                 name = re.smatch(state.line())[1];
 
             state.next();
@@ -260,7 +260,7 @@ function: parseResult (Value; string xml)
 
     \: parseValue (Value; ParseState state)
     {
-        let skipClosingValue = regex("^<double>").match(state.line());
+        let skipClosingValue = regex("^<double>", 16).match(state.line());
         if (!skipClosingValue) state.nextIf("<value>");
 
         string line = state.line();
@@ -278,11 +278,11 @@ function: parseResult (Value; string xml)
                 //  Scalar tags
                 //
 
-                let re     = regex("(<[^>]+>).*(</[^>]+>)"),
+                let re     = regex("(<[^>]+>).*(</[^>]+>)", 16),
                     parts  = re.smatch(line),
                     start  = parts[1],
                     end    = parts[2];
-                let re2    = regex("<[^>]+>([^<]*)</[^>]+>"),
+                let re2    = regex("<[^>]+>([^<]*)</[^>]+>", 16),
                     parts2 = re2.smatch(line),
                     body   = parts2[1];
 
@@ -296,7 +296,7 @@ function: parseResult (Value; string xml)
 
                     "<dateTime.iso8601>" ->
                     {
-                        let dre = regex("([0-9]{4})-?([0-9]{2})-?([0-9]{2})[Tt]([0-9]{2}):([0-9]{2}):([0-9]{2})"),
+                        let dre = regex("([0-9]{4})-?([0-9]{2})-?([0-9]{2})[Tt]([0-9]{2}):([0-9]{2}):([0-9]{2})", 16),
                             d = dre.smatch(body);
 
                         assert(d.size() == 7);
