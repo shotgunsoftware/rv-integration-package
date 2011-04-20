@@ -483,6 +483,28 @@ class: ShotgunMinorMode : MinorMode
         return false;
     }
 
+    method: mediaTypeFallback (string; string mediaType, StringMap info)
+    {
+        if (shotgun_fields.mediaTypePathEmpty (mediaType, info))
+        {
+            let types = shotgun_fields.mediaTypes();
+            for_each (t; types)
+            {
+                if (! shotgun_fields.mediaTypePathEmpty (t, info))
+                {
+                    mediaType = t;
+                    break;
+                }
+            }
+            if (mediaType != _prefs.loadMedia)
+            {
+                    print ("ERROR: no '%s' media, switching to '%s'\n" % (_prefs.loadMedia, mediaType)); 
+            }
+            else print ("ERROR: Version has no media!\n"); 
+        }
+        return mediaType;
+    }
+
     method: swapMediaFromInfo (void; string mediaType, int sourceNum)
     {
         deb ("swapMediaFromInfo called source %d\n" % sourceNum);
@@ -496,8 +518,9 @@ class: ShotgunMinorMode : MinorMode
         }
 
         string movieProp = sourcePropName (sourceNum, "media.movie");
-        let oldMedia = getStringProperty(movieProp);
+        let oldMedia     = getStringProperty(movieProp);
         StringMap info = shotgun_fields.infoFromSource (sourceNum);
+        mediaType = mediaTypeFallback (mediaType, info);
         string newMedia;
         int frameMin = 0;
         bool hasSlate = true;
@@ -523,7 +546,7 @@ class: ShotgunMinorMode : MinorMode
         //  rangeOffset, pixel aspect
         //
         let ro = 0;
-        if (mediaIsMovie (newMedia)) ro = frameMin - (if (hasSlate) then 2 else 1);
+        if (frameMin != -int.max && mediaIsMovie (newMedia)) ro = frameMin - (if (hasSlate) then 2 else 1);
 
         let mode = cacheMode();
         setCacheMode(CacheOff);
@@ -792,9 +815,9 @@ class: ShotgunMinorMode : MinorMode
         if (_demoDockWidgetShown) then CheckedMenuState else UncheckedMenuState;
     }
 
-    method: sessionFromEDL (void; string[] media, string[] mediaTypes, int[] ros, float[] pas, int[] frames, int[] ins, int[] outs)
+    method: sessionFromEDL (void; string[] media, string[] mediaTypes, int[] ros, float[] pas, int[] ins, int[] outs)
     {
-        deb ("sessionFromEDL called media %s ros %s pas %s frames %s ins %s outs %s\n" % (media, ros, pas, frames, ins, outs));
+        deb ("sessionFromEDL called media %s ros %s pas %s ins %s outs %s\n" % (media, ros, pas, ins, outs));
 
         let mode = cacheMode();
         setCacheMode(CacheOff);
@@ -831,8 +854,8 @@ class: ShotgunMinorMode : MinorMode
             {
                 let in  = ins[i],
                     out = outs[i];
-                if (in  != int.max) setIntProperty (sourcePropName(i, "cut.in"),  int[] {in});
-                if (out != int.max) setIntProperty (sourcePropName(i, "cut.out"), int[] {out});
+                if (in  != int.max-1) setIntProperty (sourcePropName(i, "cut.in"),  int[] {in});
+                if (out != int.max-1) setIntProperty (sourcePropName(i, "cut.out"), int[] {out});
             }
         }
 
@@ -850,7 +873,6 @@ class: ShotgunMinorMode : MinorMode
         string[] edlMedia; 
         string[] edlMediaTypes; 
         int[] edlRO; 
-        int[] edlFrames; 
         int[] edlIns; 
         int[] edlOuts;
         float[] edlPAs;
@@ -871,7 +893,8 @@ class: ShotgunMinorMode : MinorMode
             deb ("    _prefs.loadMedia %s\n" % _prefs.loadMedia);
             if (rangePrefs eq nil)
             {
-                mediaType = _prefs.loadMedia;
+                mediaType = mediaTypeFallback (_prefs.loadMedia, inf);
+
                 let newMedia = shotgun_fields.mediaTypePath (mediaType, inf),
                     frameMin = inf.findInt ("frameMin"),
                     pa = shotgun_fields.mediaTypePixelAspect (mediaType, inf),
@@ -881,8 +904,12 @@ class: ShotgunMinorMode : MinorMode
                 edlMediaTypes.push_back (mediaType);
                 edlPAs.push_back (pa);
 
+                //  Save mediaType for use by post progressive load code.
+                //
+                inf.add ("internalMediaType", mediaType);
+
                 deb ("    new media for mediaType %s is %s\n" % (mediaType, newMedia));
-                if (mediaIsMovie (newMedia))
+                if (mediaIsMovie (newMedia) && frameMin != -int.max)
                 {
                     edlRO.push_back (frameMin - (if (hasSlate) then 2 else 1));
                 }
@@ -903,8 +930,8 @@ class: ShotgunMinorMode : MinorMode
             {
                 deb ("    keeping same edl info\n");
 
-                edlIns.push_back(int.max);
-                edlOuts.push_back (int.max);
+                edlIns.push_back(int.max-1);
+                edlOuts.push_back (int.max-1);
             }
             else if (rangePref == Prefs.PrefLoadRangeFull)
             {
@@ -925,7 +952,7 @@ class: ShotgunMinorMode : MinorMode
                 deb ("    loading full range, hasSlate %s, mediaType '%s'\n" %
                         (hasSlate, mediaType));
 
-                edlIns.push_back (if (hasSlate) then frameMin-1 else frameMin);
+                edlIns.push_back (if (hasSlate && frameMin != -int.max) then frameMin-1 else frameMin);
                 edlOuts.push_back (frameMax);
             }
             else if (rangePref == Prefs.PrefLoadRangeNoSlate)
@@ -944,18 +971,12 @@ class: ShotgunMinorMode : MinorMode
             }
             else print ("ERROR: bad loadRange pref %s\n" % rangePref);
 
-            if (edlFrames.size() == 0)
-            {
-                edlFrames.push_back(edlIns.back());
-            }
-            edlFrames.push_back (edlFrames.back()+(1+edlOuts.back()-edlIns.back()));
-
             //  XXX need to add audio
         }
         edlIns.push_back(0);
         edlOuts.push_back(0);
 
-        sessionFromEDL (edlMedia, edlMediaTypes, edlRO, edlPAs, edlFrames, edlIns, edlOuts);
+        sessionFromEDL (edlMedia, edlMediaTypes, edlRO, edlPAs, edlIns, edlOuts);
         deb ("baseSessionFromInfos done\n");
     }
 
@@ -2016,8 +2037,14 @@ class: ShotgunMinorMode : MinorMode
             shotgun_fields.updateSourceInfo (_postProgLoadSourceNums, _postProgLoadInfos);
             deb ("    updating mediaTypes\n");
             for_each (num; _postProgLoadSourceNums) 
+            for_index (i; _postProgLoadSourceNums) 
             {
-                try { _setMediaType (_prefs.loadMedia, num); }
+                try 
+                { 
+                    let t = _postProgLoadInfos[i].find ("internalMediaType", true);
+
+                    _setMediaType (if (t neq nil) then t else _prefs.loadMedia, _postProgLoadSourceNums[i]); 
+                }
                 catch (...) { ; }
             }
             _postProgLoadInfos = nil; 

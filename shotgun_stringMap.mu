@@ -46,6 +46,22 @@ module: shotgun_stringMap
             keyarray;
         }
 
+        method: find (string; string key, bool noThrow = false)
+        {
+            let i = hash(key) % _table.size();
+
+            for (Item x = _table[i]; x neq nil; x = x.next)
+            {
+                if (x.key == key)
+                {
+                    return x.value;
+                }
+            }
+            if (noThrow) return nil;
+
+            throw exception ("No key '%s' in StringMap" % key);
+        }
+
         method: toString(string; string indent="    ")
         {
             string out = "%d keys: \n" % _numItems;
@@ -133,18 +149,10 @@ module: shotgun_stringMap
             if (_numItems > _table.size() * 2) resize();
         }
 
-        method: find (string; string key)
+        method: fieldEmpty (bool; string key)
         {
-            let i = hash(key) % _table.size();
-
-            for (Item x = _table[i]; x neq nil; x = x.next)
-            {
-                if (x.key == key)
-                {
-                    return x.value;
-                }
-            }
-            throw exception ("No key '%s' in StringMap" % key);
+            let s = find (key, true);
+            return (s eq nil || s == "");
         }
 
         method: findString (string; string key)
