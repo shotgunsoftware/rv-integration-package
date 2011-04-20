@@ -2,7 +2,7 @@ package: Shotgun Integration
 author: Tweak Software
 organization: Tweak Software
 contact: support@tweaksoftware.com
-version: 1.38
+version: 1.39
 requires: ''
 rv: 3.10.10
 optional: true
