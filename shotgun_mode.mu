@@ -311,12 +311,30 @@ class: ShotgunMinorMode : MinorMode
     //  Methods to set the menuitem active state appropriately.
     //
 
+    \: numUniqueSourcesRendered (int; )
+    {
+        let leftEye = regex(".*\.0/.*"),
+            lastName = "",
+            num = 0;
+
+        for_each (s; sourcesRendered()) 
+        {
+            if (leftEye.match(s.name) && s.name != lastName) 
+            {
+                ++num;
+                lastName = s.name;
+            }
+        }
+
+        return num;
+    }
+
     method: enableIfSingleSourceHasInfo (int; )
     {
         let sourceList = sourcesRendered(),
             menuState = DisabledMenuState;
 
-        if (sourceList.size() == 1)
+        if (numUniqueSourcesRendered() == 1)
         {
             let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
                 index = int (snum),
@@ -332,7 +350,7 @@ class: ShotgunMinorMode : MinorMode
         let sourceList = sourcesRendered(),
             menuState = DisabledMenuState;
 
-        if (sourceList.size() == 1)
+        if (numUniqueSourcesRendered() == 1)
         {
             let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
                 index = int (snum),
@@ -350,7 +368,7 @@ class: ShotgunMinorMode : MinorMode
             let sourceList = sourcesRendered(),
                 menuState = DisabledMenuState;
 
-            if (sourceList.size() == 1)
+            if (numUniqueSourcesRendered() == 1)
             {
                 let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
                     index = int (snum),
@@ -418,7 +436,7 @@ class: ShotgunMinorMode : MinorMode
             sourceNums = int[](),
             ids = int[]();
 
-        if ("all" == allOrOne || sourceList.size() != 1) 
+        if ("all" == allOrOne || numUniqueSourcesRendered() != 1) 
         {
             for (int i = 0; i < sources().size(); ++i) 
             {
@@ -554,10 +572,19 @@ class: ShotgunMinorMode : MinorMode
         try 
         {
             let sname = sourcePattern() % sourceNum; 
-            //setSourceMedia (sourcePattern() % sourceNum, string[] { newMedia });
-            setSourceMedia (sname, string[] { });
+
             setStringProperty (sname + ".request.stereoViews", string[] {}, true);
-            addToSource (sname,  newMedia, "shotgun");
+
+            //
+            //  We had to swap in this "set the media to empty then use addToSource"
+            //  path because in RV prior to 3.10.11, paths added via setSourceMedia were
+            //  not processed for %V.  But just discovered that paths added via addToSource
+            //  do not trigger a new-source event !  So color processing etc. does not work.
+            //  Since the %v thing is fixed, go back to setSourceMedia.
+            //
+            //setSourceMedia (sname, string[] { });
+            //addToSource (sname,  newMedia, "shotgun");
+            setSourceMedia (sname, string[] { newMedia }, "shotgun");
 
             _setMediaType (mediaType, sourceNum);
             setIntProperty (sourcePropName (sourceNum, "group.rangeOffset"), int[] {ro});
@@ -581,7 +608,7 @@ class: ShotgunMinorMode : MinorMode
     {
         deb ("swapMedia\n");
         let sourceList = sourcesRendered();
-        if ("all" == allOrOne || sourceList.size() != 1) 
+        if ("all" == allOrOne || numUniqueSourcesRendered() != 1) 
         {
             for (int i = 0; i < sources().size(); ++i) swapMediaFromInfo (media, i);
         }
@@ -783,7 +810,7 @@ class: ShotgunMinorMode : MinorMode
         let sourceList = sourcesRendered();
         int[] sourceNums; 
 
-        if ("all" == allOrOne || sourceList.size() != 1) 
+        if ("all" == allOrOne || numUniqueSourcesRendered() != 1) 
         {
             for (int i = 0; i < sources().size(); ++i) sourceNums.push_back(i);
         }
@@ -935,6 +962,8 @@ class: ShotgunMinorMode : MinorMode
             }
             else if (rangePref == Prefs.PrefLoadRangeFull)
             {
+                /*
+                XXX think this no longer applies, since we can just let the in/out "float"
 
                 if (mediaType eq nil)
                 {
@@ -951,9 +980,13 @@ class: ShotgunMinorMode : MinorMode
 
                 deb ("    loading full range, hasSlate %s, mediaType '%s'\n" %
                         (hasSlate, mediaType));
-
                 edlIns.push_back (if (hasSlate && frameMin != -int.max) then frameMin-1 else frameMin);
                 edlOuts.push_back (frameMax);
+                */
+                deb ("    loading full range\n");
+
+                edlIns.push_back  (-int.max);
+                edlOuts.push_back ( int.max);
             }
             else if (rangePref == Prefs.PrefLoadRangeNoSlate)
             {
@@ -1062,7 +1095,7 @@ class: ShotgunMinorMode : MinorMode
     {
         let sourceList = sourcesRendered();
 
-        if (sourceList.size() != 1) 
+        if (numUniqueSourcesRendered() != 1) 
         {
             print ("multiple sources\n");
             return (-1);
@@ -1430,7 +1463,7 @@ class: ShotgunMinorMode : MinorMode
         let sourceList = sourcesRendered(),
             targetSource = -1;
 
-        if ("one" == allOrOne && sourceList.size() == 1) 
+        if ("one" == allOrOne && numUniqueSourcesRendered() == 1) 
         {
             targetSource = int (regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back());
         }
@@ -1993,7 +2026,7 @@ class: ShotgunMinorMode : MinorMode
         if (!_prefs.trackVersionNotes) return;
 
         let sourceList = sourcesRendered();
-        if (sourceList.size() != 1) _currentSource = -1;
+        if (numUniqueSourcesRendered() != 1) _currentSource = -1;
         else
         {
             let snum  = int(regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back());

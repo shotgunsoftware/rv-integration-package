@@ -2,9 +2,9 @@ package: Shotgun Integration
 author: Tweak Software
 organization: Tweak Software
 contact: support@tweaksoftware.com
-version: 1.39
+version: 1.40
 requires: ''
-rv: 3.10.10
+rv: 3.10.11
 optional: true
 url: http://www.tweaksoftware.com
 
