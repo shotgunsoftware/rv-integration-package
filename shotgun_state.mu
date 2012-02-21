@@ -89,7 +89,8 @@ class: ShotgunState
             ok = false;
         }
 
-        if (ok) this.connectToServer();
+        // defer connecting to server until we know which server launched us
+        // if (ok) this.connectToServer();
     }
 
     method: recordsReturnedLast(int;)
@@ -162,12 +163,27 @@ class: ShotgunState
     }
 
 
-    method: connectToServer(void; )
+    method: connectToServer(void; string serverUrl="")
     {
         try 
         {
-            let (url, scriptKey) = lookupServer (_serverURL);
 
+            string lookup;
+            if (serverUrl == "")
+            {
+                // if we've already connected, then there is nothing to do
+                if (_shotgunServer neq nil) return;
+                lookup = _serverURL;
+            }
+            else
+                lookup = serverUrl;
+            let (url, scriptKey) = lookupServer (lookup);
+
+            /*
+             * default url to connect to becomes last server passed in.
+             * this doesn't work great for sessions where entities come from different
+             * servers, but support for that is in the future
+             */
             _serverURL = url;
             _scriptKey = scriptKey;
             if (url eq nil) throw exception ("ShotgunState: cannot connect to nil url");
@@ -406,7 +422,7 @@ class: ShotgunState
         else 
         {
             deb ("    nextEntity is %s, requesting info\n" % nextEntity);
-            _requestInfo (newTargetIDs, nextEntity, requestedEntities, infos, afterFunc);
+            _requestInfo (newTargetIDs, nextEntity, requestedEntities, infos, afterFunc, "");
         }
         }
         catch (exception exc)
@@ -496,11 +512,18 @@ class: ShotgunState
             string targetEntity,
             string[] requestedEntities,
             StringMap[] infos,
-            (void; StringMap[]) afterFunc)
+            (void; StringMap[]) afterFunc,
+            string serverUrl)
     {
         deb ("ShotgunState _requestInfo called\n");
         deb ("    targetIDs %s\n" % targetIDs);
         deb ("    targetEntity %s\n" % targetEntity);
+        deb ("    serverUrl %s\n" % serverUrl);
+        deb ("    _serverURL %s\n" % _serverURL);
+
+        // if we are trying to talk to a different shotgun server than the default
+        if (serverUrl != _serverURL)
+            connectToServer(serverUrl);
 
         _updateEmptySessionStr (targetEntity);
 
@@ -535,17 +558,18 @@ class: ShotgunState
             ]));
     }
 
-    method: collectVersionInfo (void; int[] ids, (void; StringMap[]) afterFunc)
+    method: collectVersionInfo (void; int[] ids, (void; StringMap[]) afterFunc, string serverURL="")
     {
         deb ("ShotgunState collectVersionInfo called\n");
         deb ("    ids %s\n" % ids);
+        deb ("    serverURL %s\n" % serverURL);
         if (0 == ids.size()) return;
 
         StringMap[] infos;
         for_each (id; ids) infos.push_back(shotgun_fields.freshInfo());
         deb ("    info[0] %s\n" % infos[0].toString("        "));
 
-        _requestInfo (ids, "Version", string[](), infos, afterFunc);
+        _requestInfo (ids, "Version", string[](), infos, afterFunc, serverURL);
     }
 
     method: collectAllVersionInfo (void; (void; StringMap[]) afterFunc)

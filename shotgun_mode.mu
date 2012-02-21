@@ -1068,15 +1068,30 @@ class: ShotgunMinorMode : MinorMode
         }
     }
 
-    method: sessionFromVersionIDs (void; int[] ids, bool doCompare = false, bool clearFirst = true)
+    method: sessionFromVersionIDs (void; int[] ids, bool doCompare = false, bool clearFirst = true, string flags="")
     {
-        deb ("shotgun mode sessionFromVersionIDs called\n");
+        deb ("shotgun mode sessionFromVersionIDs(%s, %s, %s, %s) called\n" % (ids, doCompare, clearFirst, flags));
+        StringMap flagMap = StringMap(7);
+        for_each (flag; flags.split(" "))
+        {
+            string[] pair = flag.split("=");
+            flagMap.add(pair[0], pair[1]);
+        }
+        deb ("flagMap: %s\n" % flagMap.toString());
+
         State state = data();
         if (0 == sources().size()) state.emptySessionStr = "Loading From Shotgun ...";
 
         if (0 == ids.size()) return;
 
-        _shotgunState.collectVersionInfo(ids, sessionFromInfos(doCompare,clearFirst,));
+        string serverUrl = "";
+        try
+        {
+            serverUrl = "http://%s" % flagMap.find("serverUrl");
+        }
+        catch (...) {;}
+
+        _shotgunState.collectVersionInfo(ids, sessionFromInfos(doCompare,clearFirst,), serverUrl);
     }
 
     method: goToPage (void; string url)
