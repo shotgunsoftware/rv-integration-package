@@ -49,7 +49,7 @@ function: fieldDescriptors((string, string, string, string, string, bool)[]; )
     ("project",            "Project",       "project",            "entity",      "Version", false),
     ("task",               "Task",          "sg_task",            "entity",      "Version", false),
     ("user",               "Artist",        "user",               "entity",      "Version", false),
-    ("humanUser",          "HumanUser",     "user",               "entity",      "Version", false),
+    ("humanUser",          "HumanUser",     "user",               "entity",      "Version", true),
 
     //
     //  Media types.  For each media type whose path is stored
@@ -104,7 +104,8 @@ function: fieldDescriptors((string, string, string, string, string, bool)[]; )
     ("shotStatus",         "Shot Status",   "sg_status_list",     "status_list", "Shot",    false),
     ("assetStatus",        "Asset Status",  "sg_status_list",     "status_list", "Asset",   false),
     ("userEmail",          "Artist Email",  "email",              "text",        "HumanUser",false),
-    ("department",         "Department",    "sg_department",      "text",        "Version",false)
+    ("department",         "Department",    "sg_department",      "text",        "Version", false)
+    ("flagged",            "Flagged",       "flagged",            "checkbox",    "Version", false)
     };
 
     return descriptors;

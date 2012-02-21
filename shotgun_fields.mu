@@ -372,38 +372,38 @@ function: freshInfo (StringMap; )
     return sm;
 }
 
-function: updateSourceInfo (void; int[] sourceNums, StringMap[] infos)
+function: updateSourceInfo (void; string[] sourceNames, StringMap[] infos)
 {
-    deb ("updateSourceInfo sourceNums %s, infos:\n" % sourceNums); 
+    deb ("updateSourceInfo sourceNames %s, infos:\n" % sourceNames); 
     for_each (info; infos) deb ("    info: %s\n" % info.toString("        "));
-    for_index (i; sourceNums)
+    for_index (i; sourceNames)
     {
-        string infoProp = "sourceGroup%06d_source.tracking.info" % sourceNums[i];
+        string infoProp = "%s.tracking.info" % sourceNames[i];
         try { commands.newProperty (infoProp, commands.StringType, 1); }
         catch(...) { ; }
         try { commands.setStringProperty (infoProp, infos[i].toStringArray(), true); }
         catch(...) { ; }
     }
-    updateSourceInfoStatus (sourceNums, "good");
+    updateSourceInfoStatus (sourceNames, "    good");
 }
 
-function: updateSourceInfoStatus (void; int[] sourceNums, string status)
+function: updateSourceInfoStatus (void; string[] sourceNames, string status)
 {
-    deb ("updateSourceInfoStatus sourceNums %s status %s\n" % (sourceNums, status));
-    for_index (i; sourceNums)
+    deb ("updateSourceInfoStatus sourceNames %s status %s\n" % (sourceNames, status));
+    for_index (i; sourceNames)
     {
-        string statusProp = "sourceGroup%06d_source.tracking.infoStatus" % sourceNums[i];
+        string statusProp = "%s.tracking.infoStatus" % sourceNames[i];
         try { commands.newProperty (statusProp, commands.StringType, 1); }
         catch(...) { ; }
         commands.setStringProperty (statusProp, string[] {status}, true);
     }
 }
 
-function: infoFromSource (StringMap; int sourceNum)
+function: infoFromSource (StringMap; string sourceName)
 {
     try
     {
-        string[] info = commands.getStringProperty("sourceGroup%06d_source.tracking.info" % sourceNum);
+        string[] info = commands.getStringProperty("%s.tracking.info" % sourceName);
         StringMap sm = StringMap(info);
         for_each (k; sm.keys())
         {
@@ -414,9 +414,9 @@ function: infoFromSource (StringMap; int sourceNum)
     catch (...) { return nil; }
 }
 
-function: sourceHasEditorialInfo (bool; int sourceNum)
+function: sourceHasEditorialInfo (bool; string sourceName)
 {
-    let info = infoFromSource (sourceNum);
+    let info = infoFromSource (sourceName);
 
     if (info eq nil) return false;
 
@@ -430,9 +430,9 @@ function: sourceHasEditorialInfo (bool; int sourceNum)
     return true;
 }
 
-function: sourceHasField (bool; int sourceNum, string field)
+function: sourceHasField (bool; string sourceName, string field)
 {
-    let info = infoFromSource (sourceNum);
+    let info = infoFromSource (sourceName);
 
     if (info eq nil) return false;
 
@@ -445,11 +445,11 @@ function: sourceHasField (bool; int sourceNum, string field)
     return true;
 }
 
-function: infoStatusFromSource (string; int sourceNum)
+function: infoStatusFromSource (string; string sourceName)
 {
     try 
     {
-        return commands.getStringProperty("sourceGroup%06d_source.tracking.infoStatus" % sourceNum).back();
+        return commands.getStringProperty("%s.tracking.infoStatus" % sourceName).back();
     }
     catch (...) { return nil; }
 }
@@ -611,6 +611,15 @@ function: _computeInternalPost (void; StringMap data, bool incremental)
 
             if (data.fieldEmpty(pa)) data.add(pa, "0.0");
             if (data.fieldEmpty(hs)) data.add(hs, "true");
+
+            //
+            //  Swap backslashes for "Qt-standard" forward slashes in media
+            //  paths.  Among other things, this can mess up writing of session
+            //  files.
+            
+            let media = data.find("mt_" + t);
+
+            if (media neq nil) data.add("mt_" + t, regex.replace("\\\\", media, "/"));
         }
     }
 }

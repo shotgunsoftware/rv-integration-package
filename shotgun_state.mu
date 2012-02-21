@@ -24,7 +24,7 @@ function: lookupServer((string, string); string defaultURL)
     }
     catch (object obj)
     {
-        print ("ERROR: config module serverMap function: %s\n" % string(obj));
+        print ("ERROR: (shotgun) config module serverMap function: %s\n" % string(obj));
     }
 
     (string, string) nilTuple;
@@ -32,14 +32,14 @@ function: lookupServer((string, string); string defaultURL)
     nilTuple._1 = nil;
     if (serverMap eq nil)
     {
-        print ("ERROR: No server map set in config module\n");
+        print ("ERROR: (shotgun) No server map set in config module\n");
         return nilTuple;
     }
     let parts = serverMap.split(" ");
 
     if (parts.size() == 0 || parts.size() % 2 != 0)
     {
-        print ("ERROR: bad SERVER_MAP: '%s'\n" % serverMap);
+        print ("ERROR: (shotgun) bad SERVER_MAP: '%s'\n" % serverMap);
         return nilTuple;
     }
     if (defaultURL eq nil || defaultURL == "") defaultURL = parts[0];
@@ -55,6 +55,7 @@ function: lookupServer((string, string); string defaultURL)
 class: ShotgunState
 {
     string                    _serverURL;
+    string                    _scriptKey;
     shotgun_api.ShotgunServer _shotgunServer;
     bool                      _authenticated;
     int                       _recordsReturnedLast;
@@ -69,6 +70,7 @@ class: ShotgunState
     {
         _serverURL = url;
         _shotgunServer = nil;
+        _scriptKey = nil;
         _user = user;
         _password = password;
         _authenticated = false;
@@ -82,8 +84,8 @@ class: ShotgunState
         }
         catch (object obj)
         {
-            print ("ERROR: %s\n" % string(obj));
-            print ("ERROR: Please set the configSytle preference or install a custom config module and restart RV.\n");
+            print ("ERROR: (shotgun) %s\n" % string(obj));
+            print ("ERROR: Please set the configStyle preference or install a custom config module and restart RV.\n");
             ok = false;
         }
 
@@ -167,6 +169,7 @@ class: ShotgunState
             let (url, scriptKey) = lookupServer (_serverURL);
 
             _serverURL = url;
+            _scriptKey = scriptKey;
             if (url eq nil) throw exception ("ShotgunState: cannot connect to nil url");
 
             print ("INFO: using shotgun server '%s'\n" % url);
@@ -391,7 +394,11 @@ class: ShotgunState
         let (nextEntity, newTargetIDs) = _findNextEntity (infos, requestedEntities);
         if (nextEntity eq nil)
         {
-            for_each (i; infos) shotgun_fields.compute(i, false);
+            for_each (i; infos) 
+            {
+                i.add ("shotgunURL", _serverURL);
+                shotgun_fields.compute(i, false);
+            }
             deb ("    nextEntity is nil, so calling afterFunc\n");
             afterFunc(infos);
             return;
@@ -416,6 +423,72 @@ class: ShotgunState
         {
             state.emptySessionStr = "Loading From Shotgun (%s) ..." % s;
         }
+    }
+
+    method: unpackMultiEntityField (void; (void; int[]) afterFunc, EntityFields fields)
+    {
+        deb ("unpackMultiEntityField fields\n");
+        deb ("     fields %s\n" % fields);
+        deb ("     entities.size %s\n" % fields._entities.size());
+
+        if (fields._entities.size() != 1) return;
+        if (fields._entities[0].size() != 3) return;
+
+        let Value.Array array = fields._entities[0][1]._1,
+            ids = int[]();
+
+        for_each (v; array)
+        {
+            let Value.Struct s = v;
+            let [_, _, (_, Int id)] = s;
+            ids.push_back(id);
+        }
+        deb ("    ids %s\n" % ids);
+
+        afterFunc(ids);
+    }
+
+    method: requestMultiEntityFields (void; 
+            int[] targetIDs,
+            string targetEntity,
+            [string] requestedFields,
+            (void; int[]) afterFunc)
+    {
+        deb ("ShotgunState _requestFields called\n");
+        deb ("    targetIDs %s\n" % targetIDs);
+        deb ("    targetEntity %s\n" % targetEntity);
+
+        _updateEmptySessionStr (targetEntity);
+
+        int validIDCount = 0;
+        [Value] conditionList;
+        for_each (id; targetIDs) 
+        {
+            if (-1 != id)
+            {
+                ++validIDCount;
+                Value singleCondition = Struct ([
+                    ("path", String("id")),
+                    ("relation", String("is")),
+                    ("values", Array([ Int(id) ]))
+                ]);
+
+                conditionList = singleCondition : conditionList;
+            }
+        }
+        Value condition = Array(conditionList);
+
+        deb ("    %s valid IDs for query condition\n" % validIDCount);
+        deb ("    requestedFields %s\n" % requestedFields);
+
+        _shotgunServer.find(
+            targetEntity,
+            requestedFields,
+            unpackMultiEntityField (afterFunc, ),
+            Struct( [
+                ("logical_operator", String("or")),
+                ("conditions", condition)
+            ]));
     }
 
     method: _requestInfo (void; 
@@ -487,7 +560,7 @@ class: ShotgunState
             ]));
     }
 
-    method: collectAllVersionsOfEntity (void; int projID, int id, string name, string eType, (void; StringMap[]) afterFunc)
+    method: collectAllVersionsOfEntity (void; int projID, int id, string name, string eType, (void; StringMap[]) afterFunc, bool idsOnly=true)
     {
         [Value] conditions;
 
@@ -522,7 +595,7 @@ class: ShotgunState
         _shotgunServer.find(
             "Version",
             shotgun_fields.fieldListByEntityType("Version"),
-            _processInfoFields (int[](),"Version",string[](),StringMap[](), afterFunc, true, ),
+            _processInfoFields (int[](),"Version",string[](),StringMap[](), afterFunc, idsOnly, ),
             Struct( [
                 ("logical_operator", String("and")),
                 ("conditions", Array(conditions))

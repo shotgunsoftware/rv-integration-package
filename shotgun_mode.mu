@@ -34,7 +34,6 @@ class: ShotgunMinorMode : MinorMode
 //   returned by queries to the ShotgunState level.
 //
 {
-
     shotgun_state.ShotgunState _shotgunState;
 
     qt.QPlainTextEdit _textEdit;
@@ -52,12 +51,15 @@ class: ShotgunMinorMode : MinorMode
     qt.QPushButton[] _buttons;
     qt.QCheckBox[] _checks;
 
-    bool _webLoading;
-    float _webProgress;
-    int _currentSource;
-    StringMap[] _postProgLoadInfos;
-    int[] _postProgLoadSourceNums;
-    bool _postProgLoadTurnOnWipes;
+    bool           _webLoading;
+    float          _webProgress;
+    int            _currentSource;
+    StringMap[]    _postProgLoadInfos;
+    bool           _postProgLoadTurnOnWipes;
+    string[]       _preProgLoadSources;
+
+    bool[]         _uploadsFinished;
+    bool           _uploadInProgress;
 
     bool _rvVersionGTE3_10_4;
     bool _rvVersionGTE3_10_5;
@@ -90,6 +92,7 @@ class: ShotgunMinorMode : MinorMode
         bool showPagesInPanel;
         bool trackVersionNotes;
         bool redirectUrls;
+        bool drawInfoOnPresentation;
 
         string loadMedia;
         string serverURL;
@@ -115,6 +118,7 @@ class: ShotgunMinorMode : MinorMode
             writeSetting ("Shotgun", "shotgunPassword", SettingsValue.String(shotgunPassword));
             writeSetting ("Shotgun", "department", SettingsValue.String(department));
             writeSetting ("Shotgun", "configStyle", SettingsValue.String(configStyle));
+            writeSetting ("Shotgun", "drawInfoOnPresentation", SettingsValue.Bool(drawInfoOnPresentation));
         }
 
         method: readPrefs (void; )
@@ -148,6 +152,10 @@ class: ShotgunMinorMode : MinorMode
             let SettingsValue.Bool b4 = readSetting ("Shotgun", "redirectUrls",
                     SettingsValue.Bool(true));
             redirectUrls = b4;
+
+            let SettingsValue.Bool b5 = readSetting ("Shotgun", "drawInfoOnPresentation",
+                    SettingsValue.Bool(true));
+            drawInfoOnPresentation = b5;
 
             let SettingsValue.String s1 = readSetting ("Shotgun", "serverURL",
                     SettingsValue.String(""));
@@ -219,6 +227,13 @@ class: ShotgunMinorMode : MinorMode
         _prefs.writePrefs();
     }
 
+    method: toggleDrawInfoOnPresentation (void; Event e)
+    {
+        this._prefs.drawInfoOnPresentation = !this._prefs.drawInfoOnPresentation;
+        _prefs.writePrefs();
+        shotgun_info_mode.theMode()._drawOnPresentation = this._prefs.drawInfoOnPresentation;
+    }
+
     method: toggleLoadAudio(void; Event e)
     {
         if (_prefs.loadAudio == Prefs.PrefLoadAudioYes) 
@@ -278,6 +293,12 @@ class: ShotgunMinorMode : MinorMode
         if (this._prefs.redirectUrls == true) then CheckedMenuState else UncheckedMenuState; 
     }
 
+    method: drawingInfoOnPresentation (int; )
+    {
+        deb ("drawInfoOnPresentation pref is %s\n" % this._prefs.drawInfoOnPresentation);
+        if (this._prefs.drawInfoOnPresentation == true) then CheckedMenuState else UncheckedMenuState; 
+    }
+
     method: isLoadAudio (int; )
     {
         if (_prefs.loadAudio == Prefs.PrefLoadAudioYes) then CheckedMenuState else UncheckedMenuState; 
@@ -311,72 +332,61 @@ class: ShotgunMinorMode : MinorMode
     //  Methods to set the menuitem active state appropriately.
     //
 
+    \: sourceNodesRendered (string[]; )
+    {
+        let snr = string[]();
+
+        for_each (mi; metaEvaluate(frame())) if (mi.nodeType == "RVFileSource") snr.push_back (mi.node);
+
+        return snr;
+    }
+
     \: numUniqueSourcesRendered (int; )
     {
-        let leftEye = regex(".*\.0/.*"),
-            lastName = "",
-            num = 0;
+        return sourceNodesRendered().size();
+    }
 
-        for_each (s; sourcesRendered()) 
-        {
-            if (leftEye.match(s.name) && s.name != lastName) 
-            {
-                ++num;
-                lastName = s.name;
-            }
-        }
-
-        return num;
+    method: singleSourceName(string; )
+    {
+        let snr = sourceNodesRendered();
+        return if (snr.size() == 1) then snr[0] else nil;
     }
 
     method: enableIfSingleSourceHasInfo (int; )
     {
-        let sourceList = sourcesRendered(),
-            menuState = DisabledMenuState;
+        let s = singleSourceName();
 
-        if (numUniqueSourcesRendered() == 1)
+        if (s neq nil)
         {
-            let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
-                index = int (snum),
-                info = shotgun_fields.infoFromSource (index);
+            let info = shotgun_fields.infoFromSource (s);
 
-            if (nil neq info) menuState = NeutralMenuState;
+            if (nil neq info) return NeutralMenuState;
         }
-        return menuState;
+        return DisabledMenuState;
     }
 
     method: enableIfSingleSourceHasEditorialInfo (int; )
     {
-        let sourceList = sourcesRendered(),
-            menuState = DisabledMenuState;
+        let s = singleSourceName();
 
-        if (numUniqueSourcesRendered() == 1)
+        if (s neq nil)
         {
-            let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
-                index = int (snum),
-                hasInfo = shotgun_fields.sourceHasEditorialInfo (index);
-
-            if (hasInfo) menuState = NeutralMenuState;
+            if (shotgun_fields.sourceHasEditorialInfo (s)) return NeutralMenuState;
         }
-        return menuState;
+        return DisabledMenuState;
     }
 
     method: enableIfSingleSourceHasField (MenuStateFunc; string field)
     {
         \: (int; )
         {
-            let sourceList = sourcesRendered(),
-                menuState = DisabledMenuState;
+            let s = singleSourceName();
 
-            if (numUniqueSourcesRendered() == 1)
+            if (s neq nil)
             {
-                let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
-                    index = int (snum),
-                    hasInfo = shotgun_fields.sourceHasField (index, field);
-
-                if (hasInfo) menuState = NeutralMenuState;
+                if (shotgun_fields.sourceHasField (s, field)) return NeutralMenuState;
             }
-            return menuState;
+            return DisabledMenuState;
         };
     }
 
@@ -394,6 +404,7 @@ class: ShotgunMinorMode : MinorMode
         ;
     }
 
+    /* XXX obsolete
     method: sourcePattern (string; string sub=nil)
     {
         string ret = nil;
@@ -408,9 +419,11 @@ class: ShotgunMinorMode : MinorMode
     {
         (sourcePattern(sub) % sourceNum) + "." + prop;
     }
+    */
 
     method: toggleInfoWidget(void; Event e)
     {
+        shotgun_info_mode.theMode()._drawOnPresentation = this._prefs.drawInfoOnPresentation;
         shotgun_info_mode.theMode().toggle();
     }
 
@@ -429,65 +442,63 @@ class: ShotgunMinorMode : MinorMode
         }
     }
 
+    method: versionIDFromSource (int; string sourceName)
+    {
+        try
+        {
+            let info = shotgun_fields.infoFromSource (sourceName);
+            string id = info.find("id");
+            return if (nil neq id) then int(id) else -1;
+        }
+        //catch (object obj) { print("ERROR: %s\n" % string(obj)); }
+        catch (...) { ; }
+        return -1;
+    }
+
+    method: versionNameFromSource (string; string sourceName)
+    {
+        try
+        {
+            let info = shotgun_fields.infoFromSource (sourceName);
+            return info.find("name");
+        }
+        catch (...) 
+        { 
+            print ("WARNING: source %s has no version name\n" % sourceName);
+        }
+        return nil;
+    }
+
     method: updateTrackingInfo (void; string allOrOne, Event e)
     {
         deb ("updateTrackingInfo %s\n" % allOrOne);
-        let sourceList = sourcesRendered(),
-            sourceNums = int[](),
-            ids = int[]();
+        let sources = string[](),
+            ids     = int[]();
 
         if ("all" == allOrOne || numUniqueSourcesRendered() != 1) 
         {
-            for (int i = 0; i < sources().size(); ++i) 
+            for_each (s; nodesOfType("RVFileSource"))
             {
-                let id = versionIDFromSource (i);
+                let id = versionIDFromSource (s);
                 if (-1 != id) 
                 {    
                     ids.push_back(id);
-                    sourceNums.push_back (i);
+                    sources.push_back (s);
                 }
             }
         }
         else 
         {
-            let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
-                index = int (snum);
-
-            let id = versionIDFromSource (index);
+            let s  = singleSourceName(),
+                id = versionIDFromSource (s);
             if (-1 != id) 
             {    
                 ids.push_back(id);
-                sourceNums.push_back (index);
+                sources.push_back (s);
             }
         }
-        shotgun_fields.updateSourceInfoStatus (sourceNums, "updating");
-        _shotgunState.collectVersionInfo(ids, shotgun_fields.updateSourceInfo (sourceNums, ));
-    }
-
-    method: versionIDFromSource (int; int sourceNum)
-    {
-        try
-        {
-            let info = shotgun_fields.infoFromSource (sourceNum);
-            string id = info.find("id");
-            return if (nil neq id) then int(id) else -1;
-        }
-        catch (object obj) { print("ERROR: %s\n" % string(obj)); }
-        return -1;
-    }
-
-    method: versionNameFromSource (string; int sourceNum)
-    {
-        try
-        {
-            let info = shotgun_fields.infoFromSource (sourceNum);
-            return info.find("name");
-        }
-        catch (...) 
-        { 
-            print ("WARNING: source %d has no version name\n" % sourceNum);
-        }
-        return nil;
+        shotgun_fields.updateSourceInfoStatus (sources, "updating");
+        _shotgunState.collectVersionInfo (ids, shotgun_fields.updateSourceInfo (sources, ));
     }
 
     method: mediaIsMovie (bool; string m)
@@ -523,22 +534,25 @@ class: ShotgunMinorMode : MinorMode
         return mediaType;
     }
 
-    method: swapMediaFromInfo (void; string mediaType, int sourceNum)
+    method: swapMediaFromInfo (void; string mediaType, string sourceName)
     {
-        deb ("swapMediaFromInfo called source %d\n" % sourceNum);
+        deb ("swapMediaFromInfo called, source %s\n" % sourceName);
 
-        int vid = versionIDFromSource (sourceNum);
+        int vid = versionIDFromSource (sourceName);
         if (-1 == vid)
         {
             // just skip
-            print ("WARNING: source %d has no version ID\n" % sourceNum);
+            // print ("WARNING: source %d has no version ID\n" % sourceName);
             return;
         }
 
-        string movieProp = sourcePropName (sourceNum, "media.movie");
+        string movieProp = "%s.media.movie" % sourceName;
         let oldMedia     = getStringProperty(movieProp);
-        StringMap info = shotgun_fields.infoFromSource (sourceNum);
-        mediaType = mediaTypeFallback (mediaType, info);
+        StringMap info   = shotgun_fields.infoFromSource (sourceName);
+        if (info eq nil) return;
+
+        mediaType        = mediaTypeFallback (mediaType, info);
+
         string newMedia;
         int frameMin = 0;
         bool hasSlate = true;
@@ -553,8 +567,8 @@ class: ShotgunMinorMode : MinorMode
         }
         catch(object obj) 
         {
-            print ("ERROR: source%03d has versionID, but no '%s' info: %s\n" % 
-                    (sourceNum, mediaType, obj));
+            print ("ERROR: source %s has versionID, but no '%s' info: %s\n" % 
+                    (sourceName, mediaType, obj));
             return;
         }
         //  Actually we still might need to set pixelAspect, etc. so
@@ -571,9 +585,7 @@ class: ShotgunMinorMode : MinorMode
 
         try 
         {
-            let sname = sourcePattern() % sourceNum; 
-
-            setStringProperty (sname + ".request.stereoViews", string[] {}, true);
+            setStringProperty (sourceName + ".request.stereoViews", string[] {}, true);
 
             //
             //  We had to swap in this "set the media to empty then use addToSource"
@@ -584,11 +596,11 @@ class: ShotgunMinorMode : MinorMode
             //
             //setSourceMedia (sname, string[] { });
             //addToSource (sname,  newMedia, "shotgun");
-            setSourceMedia (sname, string[] { newMedia }, "shotgun");
+            setSourceMedia (sourceName, string[] { newMedia }, "shotgun");
 
-            _setMediaType (mediaType, sourceNum);
-            setIntProperty (sourcePropName (sourceNum, "group.rangeOffset"), int[] {ro});
-            let paProp = sourcePropName (sourceNum, "pixel.aspectRatio", "transform2D");
+            _setMediaType (mediaType, sourceName);
+            setIntProperty (sourceName + ".group.rangeOffset", int[] {ro});
+            let paProp = regex.replace("_source", sourceName, "_transform2D") + ".pixel.aspectRatio";
             deb ("    setting %s to %s\n" % (paProp, float[] {pa}));
             setFloatProperty (paProp, float[] {pa});
         }
@@ -597,7 +609,7 @@ class: ShotgunMinorMode : MinorMode
             extra_commands.displayFeedback("Can't open '%s'" % newMedia);
             print("ERROR: Can't open '%s'\n" % newMedia);
 
-            try { setSourceMedia (sourcePattern() % sourceNum, oldMedia); }
+            try { setSourceMedia (sourceName, oldMedia); }
             catch (...) {;}
         }
         setCacheMode(mode);
@@ -607,22 +619,16 @@ class: ShotgunMinorMode : MinorMode
     method: swapMedia (void; string allOrOne, string media, Event e)
     {
         deb ("swapMedia\n");
-        let sourceList = sourcesRendered();
         if ("all" == allOrOne || numUniqueSourcesRendered() != 1) 
         {
-            for (int i = 0; i < sources().size(); ++i) swapMediaFromInfo (media, i);
+            for_each (s; nodesOfType("RVFileSource")) swapMediaFromInfo (media, s);
         }
-        else 
-        {
-            let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
-                index = int (snum);
+        else swapMediaFromInfo (media, sourceNodesRendered()[0]);
 
-            swapMediaFromInfo (media, index);
-        }
         deb ("swapMedia done\n");
     }
 
-    method: projectIDFromSource((int,string); int source)
+    method: projectIDFromSource((int,string); string source)
     {
         StringMap info = shotgun_fields.infoFromSource (source);
 
@@ -631,7 +637,7 @@ class: ShotgunMinorMode : MinorMode
         return (id, name);
     }
 
-    method: shotIDFromSource((int,string); int source)
+    method: shotIDFromSource((int,string); string source)
     {
         StringMap info = shotgun_fields.infoFromSource (source);
 
@@ -640,7 +646,7 @@ class: ShotgunMinorMode : MinorMode
         return (id, name);
     }
 
-    method: assetIDFromSource((int,string); int source)
+    method: assetIDFromSource((int,string); string source)
     {
         StringMap info = shotgun_fields.infoFromSource (source);
 
@@ -649,9 +655,9 @@ class: ShotgunMinorMode : MinorMode
         return (id, name);
     }
 
-    method: _setMediaType (void; string mt, int sourceNum)
+    method: _setMediaType (void; string mt, string sourceName)
     {
-        let mtProp = sourcePropName(sourceNum, "tracking.mediaType");
+        let mtProp = "%s.tracking.mediaType" % sourceName;
 
         try { newProperty (mtProp, StringType, 1); }
         catch(...) { ; }
@@ -659,20 +665,18 @@ class: ShotgunMinorMode : MinorMode
         setStringProperty (mtProp, string[]{mt}, true);
     }
 
-    method: _getMediaType (string; int sourceNum)
+    method: _getMediaType (string; string sourceName)
     {
-        let mtProp = sourcePropName(sourceNum, "tracking.mediaType");
         string mt = nil;
 
-        try { mt = getStringProperty(mtProp).front(); }
+        try { mt = getStringProperty(sourceName + ".tracking.mediaType").front(); }
         catch (...) {;}
 
         if (mt eq nil) 
         {
 
-            let movieProp = sourcePropName(sourceNum, "media.movie"),
-                oldMedia = getStringProperty(movieProp).front(),
-                oldInfo = shotgun_fields.infoFromSource (sourceNum);
+            let oldMedia = getStringProperty(sourceName + ".media.movie").front(),
+                oldInfo = shotgun_fields.infoFromSource (sourceName);
 
             mt = shotgun_fields.mediaTypeFromPath (oldMedia, oldInfo);
         }
@@ -680,28 +684,28 @@ class: ShotgunMinorMode : MinorMode
         return mt;
     }
 
-    method: swapLatestVersionsFromInfos (void; int[] sourceNums, StringMap[] infos)
+    method: swapLatestVersionsFromInfos (void; string[] sourceNames, StringMap[] infos)
     {
-        deb ("swapLatestVersionsFromInfos sources %s\n" % sources);
+        deb ("swapLatestVersionsFromInfos sources %s\n" % sourceNames);
 
         try
         {
             let mode = cacheMode();
             setCacheMode(CacheOff);
 
-            for_index (i; sourceNums)
+            for_index (i; sourceNames)
             {
-                let sn = sourceNums[i],
-                    info = infos[i];
+                let source = sourceNames[i],
+                    info   = infos[i];
 
                 //
                 //  Don't do anything if we're alread at the latest version.
                 //
-                if (info.findInt("id") == versionIDFromSource(sn)) continue;
+                if (info.findInt("id") == versionIDFromSource(source)) continue;
 
-                shotgun_fields.updateSourceInfo (int[] {sn}, StringMap[] {info});
+                shotgun_fields.updateSourceInfo (string[] {source}, StringMap[] {info});
 
-                swapMediaFromInfo (_getMediaType(sn), sn);
+                swapMediaFromInfo (_getMediaType(source), source);
             }
 
             setCacheMode(mode);
@@ -717,15 +721,15 @@ class: ShotgunMinorMode : MinorMode
     method: trimToLatestInfos (void; 
             StringMap[] infos,
             string department,
-            int[] sourceNums,
+            string[] sourceNames,
             StringMap[] collectedInfos)
     {
         deb ("trimToLatestInfos\n");
         try
         {
         StringMap[] latestInfos = StringMap[]();
-        deb ("    %s infos, %s collectedInfos, department %s, sourceNums %s\n" %
-                (infos.size(), collectedInfos.size(), department, sourceNums));
+        deb ("    %s infos, %s collectedInfos, department %s, sourceNames %s\n" %
+                (infos.size(), collectedInfos.size(), department, sourceNames));
         for_each (info; infos)
         {
             let sh = info.find("shot"),
@@ -797,7 +801,7 @@ class: ShotgunMinorMode : MinorMode
             latestInfos.push_back(if (deptMatch) then latestDeptInfo else latestInfo);
         }
 
-        swapLatestVersionsFromInfos (sourceNums, latestInfos);
+        swapLatestVersionsFromInfos (sourceNames, latestInfos);
         }
         catch (object obj)
         {
@@ -807,26 +811,27 @@ class: ShotgunMinorMode : MinorMode
 
     method: swapLatestVersions (void; string allOrOne, Event e)
     {
-        let sourceList = sourcesRendered();
-        int[] sourceNums; 
+        string[] sourceNames; 
 
-        if ("all" == allOrOne || numUniqueSourcesRendered() != 1) 
-        {
-            for (int i = 0; i < sources().size(); ++i) sourceNums.push_back(i);
-        }
-        else 
-        {
-            let snum  = regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back(),
-                index = int (snum);
+        if ("all" == allOrOne) sourceNames = nodesOfType("RVFileSource");
+        else                   sourceNames = sourceNodesRendered();
 
-            sourceNums.push_back(index);
+        let infos = StringMap[](),
+            sourceNamesWithInfo  = string[]();
+
+        for_each (s; sourceNames)
+        {
+            let info = shotgun_fields.infoFromSource(s);
+            if (info neq nil) 
+            {
+                infos.push_back(shotgun_fields.infoFromSource(s));
+                sourceNamesWithInfo.push_back (s);
+            }
         }
-        deb ("swapLatestVersions sourceNums %s\n" % sourceNums);
-        StringMap[] infos;  
-        for_each (s; sourceNums) infos.push_back(shotgun_fields.infoFromSource(s));
+        deb ("swapLatestVersions sourceNamesWithInfo %s\n" % sourceNamesWithInfo);
 
         _shotgunState.collectLatestInfo(infos, _prefs.department,
-                trimToLatestInfos (infos, _prefs.department, sourceNums, ));
+                trimToLatestInfos (infos, _prefs.department, sourceNamesWithInfo, ));
     }
 
     method: infoWidgetState (int; )
@@ -842,7 +847,7 @@ class: ShotgunMinorMode : MinorMode
         if (_demoDockWidgetShown) then CheckedMenuState else UncheckedMenuState;
     }
 
-    method: sessionFromEDL (void; string[] media, string[] mediaTypes, int[] ros, float[] pas, int[] ins, int[] outs)
+    method: sessionFromEDL (void; string[] sources, string[] media, string[] mediaTypes, int[] ros, float[] pas, int[] ins, int[] outs)
     {
         deb ("sessionFromEDL called media %s ros %s pas %s ins %s outs %s\n" % (media, ros, pas, ins, outs));
 
@@ -881,8 +886,8 @@ class: ShotgunMinorMode : MinorMode
             {
                 let in  = ins[i],
                     out = outs[i];
-                if (in  != int.max-1) setIntProperty (sourcePropName(i, "cut.in"),  int[] {in});
-                if (out != int.max-1) setIntProperty (sourcePropName(i, "cut.out"), int[] {out});
+                if (in  != int.max-1) setIntProperty (sources[i] + ".cut.in",  int[] {in});
+                if (out != int.max-1) setIntProperty (sources[i] + ".cut.out", int[] {out});
             }
         }
 
@@ -894,15 +899,15 @@ class: ShotgunMinorMode : MinorMode
         deb ("sessionFromEDL done\n");
     }
 
-    method: baseSessionFromInfos (void; int[] rangePrefs, StringMap[] infos)
+    method: baseSessionFromInfos (void; string[] sources, int[] rangePrefs, StringMap[] infos)
     {
         deb ("baseSessionFromInfos called rangePrefs %s\n" % rangePrefs);
-        string[] edlMedia; 
-        string[] edlMediaTypes; 
-        int[] edlRO; 
-        int[] edlIns; 
-        int[] edlOuts;
-        float[] edlPAs;
+        let edlMedia      = string[](),
+            edlMediaTypes = string[](),
+            edlRO         = int[](),
+            edlIns        = int[](),
+            edlOuts       = int[](),
+            edlPAs        = float[]();
 
         for_index (i; infos)
         {
@@ -1009,20 +1014,20 @@ class: ShotgunMinorMode : MinorMode
         edlIns.push_back(0);
         edlOuts.push_back(0);
 
-        sessionFromEDL (edlMedia, edlMediaTypes, edlRO, edlPAs, edlIns, edlOuts);
+        sessionFromEDL (sources, edlMedia, edlMediaTypes, edlRO, edlPAs, edlIns, edlOuts);
         deb ("baseSessionFromInfos done\n");
     }
 
-    method: sessionFromInfos (void; bool doCompare, StringMap[] infos)
+    method: sessionFromInfos (void; bool doCompare, bool clearFirst, StringMap[] infos)
     {
         deb ("sessionFromInfo called, %s infos:\n" % infos.size());
         {for_each (i; infos) deb ("    %s\n" % i.toString("        "));}
 
         try
         {
-        if (sources().size() > 0) clearSession();
+        if (clearFirst && sources().size() > 0) clearSession();
 
-        baseSessionFromInfos (nil, infos);
+        baseSessionFromInfos (nil, nil, infos);
 
         if (1 == optionsPlay() && !isPlaying()) extra_commands.togglePlay();
 
@@ -1049,12 +1054,10 @@ class: ShotgunMinorMode : MinorMode
             else print ("ERROR: bad compareOp pref %s\n" % p);
         }
 
-        int[] sourceNums;
-        for_index (sourceNum; infos) sourceNums.push_back(sourceNum);
-        deb ("    sourceNums %s, %s infos: \n" % (sourceNums, infos.size()));
+        deb ("    %s infos: \n" % infos.size());
         {for_each (i; infos) deb ("    %s\n" % i.toString("        "));}
         _postProgLoadInfos = infos;
-        _postProgLoadSourceNums = sourceNums;
+        _preProgLoadSources = nodesOfType("RVFileSource");
 
         redraw();
 
@@ -1065,7 +1068,7 @@ class: ShotgunMinorMode : MinorMode
         }
     }
 
-    method: sessionFromVersionIDs (void; int[] ids, bool doCompare = false)
+    method: sessionFromVersionIDs (void; int[] ids, bool doCompare = false, bool clearFirst = true)
     {
         deb ("shotgun mode sessionFromVersionIDs called\n");
         State state = data();
@@ -1073,7 +1076,7 @@ class: ShotgunMinorMode : MinorMode
 
         if (0 == ids.size()) return;
 
-        _shotgunState.collectVersionInfo(ids, sessionFromInfos(doCompare,));
+        _shotgunState.collectVersionInfo(ids, sessionFromInfos(doCompare,clearFirst,));
     }
 
     method: goToPage (void; string url)
@@ -1091,6 +1094,8 @@ class: ShotgunMinorMode : MinorMode
         }
     }
 
+    /*
+    XXX obsolete
     method: sourceNumFromSingleSource (int; )
     {
         let sourceList = sourcesRendered();
@@ -1105,12 +1110,14 @@ class: ShotgunMinorMode : MinorMode
 
         return source;
     }
+    */
 
     method: goToVersionNotesPage (void; bool force, Event e)
     {
-        let snum = sourceNumFromSingleSource(),
-            vid = versionIDFromSource (snum),
-            info = shotgun_fields.infoFromSource (snum);
+        let src = singleSourceName(),
+            vid = versionIDFromSource (src),
+            info = shotgun_fields.infoFromSource (src);
+
         if (-1 != vid)
         {
             string fullName = "";
@@ -1153,8 +1160,8 @@ class: ShotgunMinorMode : MinorMode
             }
             catch (...) {;}
 
-            let (pID, pName) = projectIDFromSource(snum),
-                vName = versionNameFromSource(snum),
+            let (pID, pName) = projectIDFromSource(src),
+                vName = versionNameFromSource(src),
 
                 urlString = _prefs.serverURL +
                 //"/page/custom_d2_layout?page_id=2580&entity_type=Version&entity_id=%d&show_nav=no" % vid);
@@ -1179,7 +1186,7 @@ class: ShotgunMinorMode : MinorMode
 
     method: goToVersionPage (void; Event e)
     {
-        let vid = versionIDFromSource (sourceNumFromSingleSource());
+        let vid = versionIDFromSource (singleSourceName());
         if (-1 != vid)
         {
             goToPage (_prefs.serverURL + "/detail/Version/%d" % vid);
@@ -1188,7 +1195,7 @@ class: ShotgunMinorMode : MinorMode
 
     method: goToShotPage (void; Event e)
     {
-        let source = sourceNumFromSingleSource(),
+        let source = singleSourceName(),
             vid = versionIDFromSource (source);
         if (-1 == vid) return;
 
@@ -1201,7 +1208,7 @@ class: ShotgunMinorMode : MinorMode
 
     method: goToAssetPage (void; Event e)
     {
-        let source = sourceNumFromSingleSource(),
+        let source = singleSourceName(),
             vid = versionIDFromSource (source);
         if (-1 == vid) return;
 
@@ -1227,8 +1234,9 @@ class: ShotgunMinorMode : MinorMode
     {
         if (which == "version")
         {
-            let vName = versionNameFromSource (sourceNumFromSingleSource()),
-                vid = versionIDFromSource (sourceNumFromSingleSource()),
+            let source = singleSourceName(),
+                vName = versionNameFromSource (source),
+                vid = versionIDFromSource (source),
                 raw = " -play -l -eval 'shotgun.sessionFromVersionIDs(int[] {%d});'" % vid,
                 title = "Version %s" % vName;
 
@@ -1255,10 +1263,10 @@ class: ShotgunMinorMode : MinorMode
             string[] vNames;
             int[] vids;
             string title = "Session with Versions: ";
-            for_index (i; sources())
+            for_each (s; nodesOfType("RVFileSource"))
             {
-                let vName = versionNameFromSource (i),
-                    vid = versionIDFromSource (i);
+                let vName = versionNameFromSource (s),
+                    vid = versionIDFromSource (s);
 
                 if (vid != -1)
                 {
@@ -1298,25 +1306,29 @@ class: ShotgunMinorMode : MinorMode
         }
     }
 
-    method: _sessionFromAllVersions (void; float startTime, StringMap[] infos)
+    method: _sessionFromAllVersions (void; float startTime, bool newSession, StringMap[] infos)
     {
         print ("INFO: retrieved %s Versions in %s seconds\n" % (infos.size(), (theTime() - startTime)));
-        int[] ids = int[]();
-        for_each(info; infos) ids.push_back(int(info.find("id")));
+        if (newSession)
+        {
+            int[] ids = int[]();
+            for_each(info; infos) ids.push_back(int(info.find("id")));
 
-        string url = "rvlink:// -reuse 0 -play -l -eval 'shotgun.sessionFromVersionIDs(%s);'" % ids;
-        sessionFromUrl (url);
+            string url = "rvlink:// -reuse 0 -play -l -eval 'shotgun.sessionFromVersionIDs(%s);'" % ids;
+            sessionFromUrl (url);
+        }
+        else sessionFromInfos (false, true, infos);
     }
 
     method: allVersions (void; Event e)
     {
-        _shotgunState.collectAllVersionInfo(_sessionFromAllVersions(theTime(),));
+        _shotgunState.collectAllVersionInfo(_sessionFromAllVersions(theTime(),true, ));
     }
 
     method: allEntityVersions (void; string name, string fieldName, string fieldType, bool projConstraint, Event e)
     {
-        deb ("allEntityVersions name %s fieldName %s type %s\n");
-        let source = sourceNumFromSingleSource(),
+        deb ("allEntityVersions name %s fieldName %s type %s\n" % (name, fieldName, fieldType));
+        let source = singleSourceName(),
             info = shotgun_fields.infoFromSource (source);
 
         if (nil eq info)
@@ -1337,12 +1349,12 @@ class: ShotgunMinorMode : MinorMode
             catch (...) {;}
         }
 
-        _shotgunState.collectAllVersionsOfEntity(projID, id, fieldName, fieldType, _sessionFromAllVersions(theTime(),));
+        _shotgunState.collectAllVersionsOfEntity(projID, id, fieldName, fieldType, _sessionFromAllVersions(theTime(),true, ));
     }
 
     method: isolateShot (void; Event e)
     {
-        let vid = versionIDFromSource (sourceNumFromSingleSource());
+        let vid = versionIDFromSource (singleSourceName());
         if (-1 == vid) return;
 
         string url = "rvlink:// -reuse 0 -play -l -eval 'shotgun.sessionFromVersionIDs(int[] {%d});'" % vid;
@@ -1428,7 +1440,7 @@ class: ShotgunMinorMode : MinorMode
     method: isolateShotAndNeighbors (void; Event e)
     {
         deb ("isolateShotAndNeighbors\n");
-        let source = sourceNumFromSingleSource(),
+        let source = singleSourceName(),
             info = shotgun_fields.infoFromSource (source);
 
         if (nil eq info)
@@ -1460,39 +1472,35 @@ class: ShotgunMinorMode : MinorMode
 
     method: changeEdit (void; string allOrOne, int rPref, Event e)
     {
-        let sourceList = sourcesRendered(),
-            targetSource = -1;
+        let sources = nodesOfType("RVFileSource");
 
-        if ("one" == allOrOne && numUniqueSourcesRendered() == 1) 
+        if ("one" == allOrOne)
         {
-            targetSource = int (regex.smatch("[a-zA-Z]+([0-9]+)", sourceList[0].name).back());
+            if (numUniqueSourcesRendered() != 1) return;
+            sources = string[] { singleSourceName() };
         }
 
-        int[] rangePrefs;
+        let rangePrefs   = int[](),
+            infos        = StringMap[](),
+            finalSources = string[]();
 
-        StringMap[] infos;
-        for_index (i; sources())
+        for_each (s; sources)
         {
-            let info = shotgun_fields.infoFromSource (i);
+            let info = shotgun_fields.infoFromSource (s);
             if (nil eq info)
             {
                 // for now just skip
                 //  XXX we should try to figure out the shotgun
                 //  version from the media file name, etc.
 
-                print ("ERROR: source %d has no version info\n" % i);
+                //print ("ERROR: source %d has no version info\n" % i);
+                continue;
             }
-            if (targetSource == i || targetSource == -1) 
-            {
-                rangePrefs.push_back (rPref);
-            }
-            else 
-            {
-                rangePrefs.push_back (Prefs.PrefLoadRangeNoPref);
-            }
+            rangePrefs.push_back (rPref);
             infos.push_back (info);
+            finalSources.push_back (s);
         }
-        baseSessionFromInfos (rangePrefs, infos);
+        baseSessionFromInfos (finalSources, rangePrefs, infos);
     }
 
     method: checkbox (qt.QCheckBox; string name) { /*print ("looking for '%s'\n" % name);*/ _shotgunPanel.findChild(name); }
@@ -1746,6 +1754,7 @@ class: ShotgunMinorMode : MinorMode
             {"Difference",
                 setCompareOp(Prefs.PrefCompareOpDiff,), nil, isCompareOp(Prefs.PrefCompareOpDiff)},
             {"_", nil},
+            {"Draw Info Widget on Presentation Device", toggleDrawInfoOnPresentation, nil, drawingInfoOnPresentation},
             {"Set Preferred Department", setDepartment, nil, uncheckedFunc},
             {"Set Shotgun Server", setServerURL, nil, uncheckedFunc},
             {"Set Shotgun Config Style", setShotgunConfigStyle, nil, uncheckedFunc},
@@ -2066,17 +2075,41 @@ class: ShotgunMinorMode : MinorMode
 
         if (_postProgLoadInfos neq nil) 
         {
+            deb ("    finding sources\n");
+            let postProgLoadSources = string[]();
+            let currentSources = nodesOfType("RVFileSource");
+            for_each (cs; currentSources)
+            {
+                let foundIt = false;
+                for_each (s; _preProgLoadSources) 
+                {
+                    if (s == cs) foundIt = true;
+                }
+                if (!foundIt) 
+                {
+                    postProgLoadSources.push_back (cs);
+                    deb ("added source %s\n" % cs);
+                }
+            }
+            if (postProgLoadSources.size() != _postProgLoadInfos.size())
+            {
+                print ("ERROR: after progressive loading, number of new sources (%s) != infos (%s)" %
+                        (postProgLoadSources.size(), _postProgLoadInfos.size()));
+                return;
+                
+            }
+
             deb ("    updating info\n");
-            shotgun_fields.updateSourceInfo (_postProgLoadSourceNums, _postProgLoadInfos);
+            shotgun_fields.updateSourceInfo (postProgLoadSources, _postProgLoadInfos);
+
             deb ("    updating mediaTypes\n");
-            for_each (num; _postProgLoadSourceNums) 
-            for_index (i; _postProgLoadSourceNums) 
+            for_index (i; _postProgLoadInfos) 
             {
                 try 
                 { 
                     let t = _postProgLoadInfos[i].find ("internalMediaType", true);
 
-                    _setMediaType (if (t neq nil) then t else _prefs.loadMedia, _postProgLoadSourceNums[i]); 
+                    _setMediaType (if (t neq nil) then t else _prefs.loadMedia, postProgLoadSources[i]); 
                 }
                 catch (...) { ; }
             }
@@ -2087,6 +2120,60 @@ class: ShotgunMinorMode : MinorMode
             rvui.toggleWipe();
             _postProgLoadTurnOnWipes = false;
         }
+    }
+
+    method: findEntityInURL ((int, string); string url)
+    {
+        let parts = regex("/([A-Za-z]+)/([0-9]*)$").smatch(url);
+
+        if (parts neq nil && parts.size() == 3)
+        {
+            if (parts[1] == "Version")   return (int(parts[2]), "Version");
+            if (parts[1] == "Shot")      return (int(parts[2]), "Shot");
+            if (parts[1] == "Asset")     return (int(parts[2]), "Asset");
+            if (parts[1] == "HumanUser") return (int(parts[2]), "User");
+            if (parts[1] == "Playlist")  return (int(parts[2]), "Playlist");
+            //  XXX should handle  Sequence 
+        }
+        return (-1, string(nil));
+    }
+
+    method: entityVersions (void; int id, string fieldName, string fieldType)
+    {
+        _shotgunState.collectAllVersionsOfEntity(-1, id, fieldName, fieldType, _sessionFromAllVersions(theTime(),false, ), false);
+    }
+
+    method: versionsFromPlaylist (void; int id)
+    {
+        [string] fieldNames;
+        fieldNames = "versions" : fieldNames;
+
+        _shotgunState.requestMultiEntityFields (int[] {id}, "Playlist", fieldNames, sessionFromVersionIDs( , false, true));
+    }
+
+    method: urlDoDrop (void; int region, string url)
+    {
+        let (id, etype) = findEntityInURL (url);
+
+        if (id == -1) return;
+        
+        if      (etype == "Version") sessionFromVersionIDs (int[] {id}, false, false);
+        else if (etype == "Shot")    entityVersions (id, "entity", "Shot");
+        else if (etype == "Asset")   entityVersions (id, "entity", "Asset");
+        else if (etype == "Playlist") versionsFromPlaylist (id);
+        else if (etype == "User")    entityVersions (id, "user",   "HumanUser");
+    }
+
+    method: urlDropFunc (((void; int, string), string); string url)
+    {
+        let (id, etype) = findEntityInURL (url);
+
+        if (id != -1) 
+        {
+            if (etype == "Version") return (urlDoDrop, "Drop to add %s %s" % (etype, id));
+            else                    return (urlDoDrop, "Drop to view versions of %s %s" % (etype, id));
+        }
+        else          return MinorMode.urlDropFunc (this, url);
     }
 
     method: ShotgunMinorMode (ShotgunMinorMode;)
@@ -2141,7 +2228,6 @@ class: ShotgunMinorMode : MinorMode
         _textEdit.hide();
 
         _postProgLoadInfos = nil;
-        _postProgLoadSourceNums = nil;
         _postProgLoadTurnOnWipes = false;
 
         let versionString = system.getenv("TWK_APP_VERSION"),
@@ -2154,6 +2240,9 @@ class: ShotgunMinorMode : MinorMode
                                 (majVersion == 3 && minVersion > 10) ||
                                 (majVersion == 3 && minVersion == 10 && revision >= 4));
         _rvVersionGTE3_10_5 = (_rvVersionGTE3_10_4 && revision >= 5);
+
+        _uploadsFinished = bool[]();
+        _uploadInProgress = false;
 
         if (false)
         {
@@ -2311,7 +2400,7 @@ class: ShotgunMinorMode : MinorMode
         """;
     }
 
-    global int mycount = 0;
+    //global int mycount = 0;
 
     method: render (void; Event event)
     {
@@ -2389,6 +2478,214 @@ class: ShotgunMinorMode : MinorMode
 
         redraw();
     }
+
+
+    //
+    //  Upload a jpeg file to a shotgun entity either as an attachement or
+    //  as a thumbnail (if arg "thumbnail" is true).  myCallback will be called
+    //  as every upload completes.
+    //
+
+    method: _uploadJPEGtoEntity (void; 
+            string   entityType,
+            int      entityID,
+            string   fileName,
+            string   displayName,
+            bool     thumbnail,
+            (void;)  myCallback,
+            string   eventKey)
+    {
+        let file  = io.ifstream (fileName, io.stream.In | io.stream.Binary),
+            bytes = io.read_all_bytes (file),
+            b64   = encoding.to_base64 (bytes),
+            url   = "";
+
+        if (thumbnail) url = _shotgunState._serverURL + "/upload/publish_thumbnail";
+        else           url = _shotgunState._serverURL + "/upload/upload_file";
+
+        string boundary = "00---------------------------7d03135102b8";
+
+        string contents = "";
+
+        function: param (string; string name, string value)
+        {
+            "--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n" % (boundary, name, value);
+        };
+
+        contents += param ("entity_type", entityType);
+        contents += param ("entity_id",   entityID);
+        contents += param ("script_name", "rv");
+        contents += param ("script_key",  _shotgunState._scriptKey);
+
+        if (! thumbnail)
+        {
+            contents += "--%s\r\n" % boundary;
+            contents += "Content-Disposition: form-data; "; 
+            contents += "name=\"display_name\"\r\n";
+            contents += "\r\n%s\r\n" % displayName;
+        }
+
+        contents += "--%s\r\n" % boundary;
+        contents += "Content-Disposition: form-data; "; 
+
+        if (thumbnail) contents += "name=\"thumb_image\"; ";
+        else           contents += "name=\"file\"; ";
+
+        contents += "filename=\"%s\"\r\n" % io.path.basename(fileName);
+        contents += "Content-Type: image/jpeg\r\n";
+        contents += "Content-Length: %s\r\n\r\n" % string(bytes.size());
+
+        \: byteAppend (void; byte[] b, string s)
+        {
+            for (int i = 0; i < s.size(); ++i) b.push_back(byte(s[i]));
+
+        }
+        \: byteAppend (void; byte[] b, byte[] b2)
+        {
+            for (int i = 0; i < b2.size(); ++i) b.push_back(b2[i]);
+        }
+
+        byte[] finalBytes = byte[]();
+
+        let start = theTime();
+
+        byteAppend (finalBytes, contents);
+        byteAppend (finalBytes, bytes);
+        byteAppend (finalBytes, "\r\n--%s--\r\n\r\n" % boundary);
+
+        //  print ("assembling byte[] took %s seconds\n" % (theTime() - start));
+
+        [(string,string)] headers;
+
+        headers = ("Connection", "close") : headers;
+        headers = ("Content-Type", "multipart/form-data; boundary=%s" % boundary) : headers;
+        //  headers = ("Host", "rvdemo.shotgunstudio.com") : headers;
+        headers = ("Content-Length", string(finalBytes.size())) : headers;
+        headers = ("Accept-Encoding", "identity") : headers;
+
+        function: replyHandler (void; float startTime, (void;) callback, Event event)
+        {
+            let c = event.contents();
+
+            deb ("reply: %s bytes, %s seconds\n%s\n" % (c.size(), theTime() - startTime, c));
+
+            callback();
+        };
+
+        function: authHandler (void; Event event) { print("auth: %s\n" %  event.contents()); }
+        function: errorHandler (void; Event event) { print("progress: %s\n" %  event.contents()); }
+        function: progressHandler (void; Event event) { print("error: %s\n" %  event.contents()); }
+
+        let replyEvent    = eventKey + "-uploadJPEG--reply",
+            authEvent     = eventKey + "-uploadJPEG--auth",
+            errorEvent    = eventKey + "-uploadJPEG--error",
+            progressEvent = eventKey + "-uploadJPEG--progress";
+
+        app_utils.bind (replyEvent, replyHandler(theTime(),myCallback,));
+        app_utils.bind (authEvent, authHandler);
+        app_utils.bind (progressEvent, progressHandler);
+
+        let ignoreSslErrors = true;
+        deb ("posting %s bytes to '%s'\n" % (finalBytes.size(), url));
+        httpPost (url, headers, finalBytes, replyEvent, authEvent, progressEvent, ignoreSslErrors);          
+    }
+
+    //
+    //  Build a func that takes callbacks from the upload process and updates
+    //  list of outstanding upload status.  Sent progress events after each
+    //  upload, finished event when they are all complete.
+    //
+
+    method: _manageJPEGuploadsFunc ((void;) ; int index, int total, string progressEventName, string finishedEventName)
+    {
+        \: (void; )
+        {
+            deb ("_manageJPEGuploadsFunc %s/%s\n" % (index, total));
+
+            this._uploadsFinished[index] = true;
+
+            int done = 0;
+            for_each (f; this._uploadsFinished) if (f) ++done;
+            let finishedFactor = float(done)/float(this._uploadsFinished.size());
+
+            deb ("    %s complete\n" % finishedFactor);
+
+            if (progressEventName neq nil) sendInternalEvent (progressEventName, string(finishedFactor));
+
+            if (done == this._uploadsFinished.size())
+            {
+                this._uploadInProgress = false;
+                if (finishedEventName neq nil) sendInternalEvent (finishedEventName, "");
+            }
+        };
+    }
+
+    //
+    //  Upload the given jpg to the given entity (usually a Version) as a
+    //  thumbnail.  send the finished event on completion.
+    //
+
+    method: uploadJPEGthumbnail (string; 
+            string filePath,
+            int    entityID,
+            string entityType,
+            string finishedEventName)
+    {
+        let error = "";
+        if (_uploadInProgress) return "ERROR: another upload is in progress.";
+
+        _uploadsFinished.resize(1);
+        _uploadsFinished[0] = false;
+
+        _uploadJPEGtoEntity (
+                entityType,
+                entityID,
+                filePath,
+                io.path.basename(filePath),
+                true,
+                _manageJPEGuploadsFunc (0, 1, nil, finishedEventName),
+                "thumb");
+
+        return error;
+    }
+
+    //
+    //  Upload the given jpgs to the given entity as attachments.  send the
+    //  finished event on completion.  The displayNames are attached to the upload,
+    //  the basename of the apppropriate path is used if no displayNames are provided.
+    //  progress events are sent after each (asynchronous) upload completes.
+    //
+
+    method: uploadJPEGattachments (string; 
+            string[] filePaths,
+            string[] displayNames,
+            int      entityID,
+            string   entityType,
+            string   progressEventName,
+            string   finishedEventName)
+    {
+        let error = "";
+        if (_uploadInProgress) return "ERROR: another upload is in progress.";
+
+        _uploadsFinished.resize(filePaths.size());
+        for_index (i; _uploadsFinished) _uploadsFinished[i] = false;
+        _uploadsFinished[0] = false;
+
+        for_index (i; filePaths)
+        {
+            _uploadJPEGtoEntity (
+                    entityType,
+                    entityID,
+                    filePaths[i],
+                    if (displayNames neq nil) then displayNames[i] else io.path.basename(filePaths[i]),
+                    false,
+                    _manageJPEGuploadsFunc (i, filePaths.size(), progressEventName, finishedEventName),
+                    "attach_" + string(i));
+        }
+
+        return error;
+    }
+
     /*
     method: render (void; Event event)
     {
@@ -2511,6 +2808,87 @@ class: ShotgunMinorMode : MinorMode
         print ("ERROR: compareFromVersionIDs failed: %s" % string(obj));
     }
     return ("noprint");
+}
+
+\: _runRVIOcleanupFunc ((void; ); string eventName)
+{
+    \: (void; )
+    {
+        require export_utils;
+        require external_qprocess;
+
+        let errors = "";
+
+        //  caller must remove any temp session data
+        //
+        //  export_utils.removeTempSession();
+
+        State state = data();
+        if (state.externalProcess neq nil) 
+        {
+            external_qprocess.ExternalQProcess qp = state.externalProcess;
+            if (qp._errors != "") errors = "ERROR: " + qp._errors;
+        }
+
+        sendInternalEvent (eventName, errors);
+        state.unregisterQuitMessage ("runRVIO");
+    };
+}
+
+//
+//  Start an external process to run rvio_hw false) with the given args.
+//  Send event finishEventName when process is complete, with event
+//  contents indicating any error (contents are empty if there was
+//  no error).
+//
+//  NOTE: output move/sequence is assumed to be in "args", and this code
+//  does not clean it up or do anything with it.  Likewise the rvio input
+//  file, presumably a session file, is not managed by this code.
+//
+
+\: runRVIO (string; string[] args, string finishEventName) 
+{
+
+    State state = data();
+
+    if (state.externalProcess neq nil)
+    {
+        int choice = alertPanel (
+                true, // associated panel (sheet on OSX)
+                WarningAlert,
+                "WARNING", "Another process is still running",
+                "OK", nil, nil);
+        return;
+    }
+    let error = "";
+
+    try
+    {
+        require export_utils;
+        require rvui;
+
+        state.externalProcess = export_utils.rvio ("Export Movie", args, _runRVIOcleanupFunc(finishEventName));
+        rvui.toggleProcessInfo();
+        redraw();
+        state.registerQuitMessage ("runRVIO", "There is an 'Export Movie' process running.");
+    }
+    catch (object obj)
+    {
+        error = string(obj);
+    }
+    catch (...)
+    {
+        error = "unknown error";
+    }
+    if (error != "")
+    {
+        int choice = alertPanel (
+                true, // associated panel (sheet on OSX)
+                ErrorAlert,
+                "ERROR", "Unable to call RVIO: %s" % error,
+                "OK", nil, nil);
+    }
+    return error;
 }
 
 }
