@@ -55,6 +55,12 @@ function: reverse ([(string, Value)]; [(string, Value)] a)
     n;
 }
 
+function: posixRegex (regex; string pattern)
+{
+    if (runtime.build_os() == "WINDOWS") return regex(pattern, 16);
+    else                                 return regex(pattern);
+}
+
 function: outputValue (void; ostream o, Value v)
 {
     print(o, "<value>");
@@ -220,7 +226,7 @@ function: parseResult (Value; string xml)
         while (state.line() != "</struct>")
         {
             state.nextIf("<member>");
-            let re = regex("<name>([^<]+)"),
+            let re = posixRegex("<name>([^<]+)"),
                 name = re.smatch(state.line())[1];
 
             state.next();
@@ -260,7 +266,7 @@ function: parseResult (Value; string xml)
 
     \: parseValue (Value; ParseState state)
     {
-        let skipClosingValue = regex("^<double>").match(state.line());
+        let skipClosingValue = posixRegex("^<double>").match(state.line());
         if (!skipClosingValue) state.nextIf("<value>");
 
         string line = state.line();
@@ -278,11 +284,11 @@ function: parseResult (Value; string xml)
                 //  Scalar tags
                 //
 
-                let re     = regex("(<[^>]+>).*(</[^>]+>)"),
+                let re     = posixRegex("(<[^>]+>).*(</[^>]+>)"),
                     parts  = re.smatch(line),
                     start  = parts[1],
                     end    = parts[2];
-                let re2    = regex("<[^>]+>([^<]*)</[^>]+>"),
+                let re2    = posixRegex("<[^>]+>([^<]*)</[^>]+>"),
                     parts2 = re2.smatch(line),
                     body   = parts2[1];
 
@@ -296,7 +302,7 @@ function: parseResult (Value; string xml)
 
                     "<dateTime.iso8601>" ->
                     {
-                        let dre = regex("([0-9]{4})-?([0-9]{2})-?([0-9]{2})[Tt]([0-9]{2}):([0-9]{2}):([0-9]{2})"),
+                        let dre = posixRegex("([0-9]{4})-?([0-9]{2})-?([0-9]{2})[Tt]([0-9]{2}):([0-9]{2}):([0-9]{2})"),
                             d = dre.smatch(body);
 
                         assert(d.size() == 7);

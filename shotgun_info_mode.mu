@@ -36,6 +36,7 @@ class: ShotgunInfo : Widget
                     ("pointer--move", move(this,), "") ],
                   false);
 
+        _drawOnPresentation = true;
         _x = 40;
         _y = 60;
 
@@ -62,14 +63,14 @@ class: ShotgunInfo : Widget
 
         try
         {
-            let sourceNum = int (regex.smatch("[a-zA-Z]+([0-9]+)", iname).back());
-            if ("updating" == shotgun_fields.infoStatusFromSource (sourceNum))
+            let sourceName = regex.smatch("(sourceGroup[0-9]+_source)", iname).back();
+            if ("updating" == shotgun_fields.infoStatusFromSource (sourceName))
             {
                 attrs.push_back (("", "  Updating ..."));
             }
             else
             {
-                StringMap info = shotgun_fields.infoFromSource (sourceNum);
+                StringMap info = shotgun_fields.infoFromSource (sourceName);
 
                 let keys = shotgun_fields.displayOrder();
                 for (int i = keys.size()-1; i >= 0; --i)

@@ -290,17 +290,24 @@ function: mediaTypes (string[]; )
     return types;
 }
 
+function: mediaTypePathEmpty (bool; string mediaType, StringMap info)
+{
+    let name = "mt_" + mediaType;
+
+    return info.fieldEmpty (name);
+}
+
 function: mediaTypePath (string; string mediaType, StringMap info)
 {
     let name = "mt_" + mediaType;
 
-    string path = info.find(name);
-    if (path eq nil)
+    string path = info.find(name, true);
+    if (path eq nil || path == "")
     {
         //  print ("WARNING: %s not set, using colorbars\n" % name);
         path = "smptebars,start=1,end=100.movieproc";
     }
-    return path;
+    return extractLocalPathValue(path);
 }
 
 function: mediaTypePixelAspect (float; string mediaType, StringMap info)
@@ -365,38 +372,38 @@ function: freshInfo (StringMap; )
     return sm;
 }
 
-function: updateSourceInfo (void; int[] sourceNums, StringMap[] infos)
+function: updateSourceInfo (void; string[] sourceNames, StringMap[] infos)
 {
-    deb ("updateSourceInfo sourceNums %s, infos:\n" % sourceNums); 
+    deb ("updateSourceInfo sourceNames %s, infos:\n" % sourceNames); 
     for_each (info; infos) deb ("    info: %s\n" % info.toString("        "));
-    for_index (i; sourceNums)
+    for_index (i; sourceNames)
     {
-        string infoProp = "sourceGroup%06d_source.tracking.info" % sourceNums[i];
+        string infoProp = "%s.tracking.info" % sourceNames[i];
         try { commands.newProperty (infoProp, commands.StringType, 1); }
         catch(...) { ; }
         try { commands.setStringProperty (infoProp, infos[i].toStringArray(), true); }
         catch(...) { ; }
     }
-    updateSourceInfoStatus (sourceNums, "good");
+    updateSourceInfoStatus (sourceNames, "    good");
 }
 
-function: updateSourceInfoStatus (void; int[] sourceNums, string status)
+function: updateSourceInfoStatus (void; string[] sourceNames, string status)
 {
-    deb ("updateSourceInfoStatus sourceNums %s status %s\n" % (sourceNums, status));
-    for_index (i; sourceNums)
+    deb ("updateSourceInfoStatus sourceNames %s status %s\n" % (sourceNames, status));
+    for_index (i; sourceNames)
     {
-        string statusProp = "sourceGroup%06d_source.tracking.infoStatus" % sourceNums[i];
+        string statusProp = "%s.tracking.infoStatus" % sourceNames[i];
         try { commands.newProperty (statusProp, commands.StringType, 1); }
         catch(...) { ; }
         commands.setStringProperty (statusProp, string[] {status}, true);
     }
 }
 
-function: infoFromSource (StringMap; int sourceNum)
+function: infoFromSource (StringMap; string sourceName)
 {
     try
     {
-        string[] info = commands.getStringProperty("sourceGroup%06d_source.tracking.info" % sourceNum);
+        string[] info = commands.getStringProperty("%s.tracking.info" % sourceName);
         StringMap sm = StringMap(info);
         for_each (k; sm.keys())
         {
@@ -407,42 +414,42 @@ function: infoFromSource (StringMap; int sourceNum)
     catch (...) { return nil; }
 }
 
-function: sourceHasEditorialInfo (bool; int sourceNum)
+function: sourceHasEditorialInfo (bool; string sourceName)
 {
-    let info = infoFromSource (sourceNum);
+    let info = infoFromSource (sourceName);
 
     if (info eq nil) return false;
 
     let edlFields = string[] { "frameMin", "frameMax", "frameIn", "frameOut" };
     try 
     {
-        for_each (f; edlFields) if (info.find(f) eq nil) return false;
+        for_each (f; edlFields) if (info.find(f) eq nil || info.find(f) == "") return false;
     } 
     catch (...) { return false; }
 
     return true;
 }
 
-function: sourceHasField (bool; int sourceNum, string field)
+function: sourceHasField (bool; string sourceName, string field)
 {
-    let info = infoFromSource (sourceNum);
+    let info = infoFromSource (sourceName);
 
     if (info eq nil) return false;
 
     try 
     {
-        if (info.find(field) eq nil) return false;
+        if (info.find(field) eq nil || info.find(field) == "") return false;
     }
     catch (...) { return false; }
 
     return true;
 }
 
-function: infoStatusFromSource (string; int sourceNum)
+function: infoStatusFromSource (string; string sourceName)
 {
     try 
     {
-        return commands.getStringProperty("sourceGroup%06d_source.tracking.infoStatus" % sourceNum).back();
+        return commands.getStringProperty("%s.tracking.infoStatus" % sourceName).back();
     }
     catch (...) { return nil; }
 }
@@ -553,43 +560,66 @@ function: _computeInternalPost (void; StringMap data, bool incremental)
     if (!incremental)
     {
         deb ("    final field processing\n");
-        if (data.find ("frameMin") eq nil)
+        if (data.fieldEmpty ("frameMin"))
         {
-            string mf = data.find ("frameIn");
-            if (mf eq nil) mf = "1";
-            if (data.find("shot") neq nil)
+            string mf = -int.max;
+
+            if (! data.fieldEmpty("shot"))
             {
-                print ("WARNING: missing frameMin (%s) field, assuming '%s'\n" % (fieldNameMap.find("frameMin"), mf));
+                print ("INFO: missing frameMin (%s) field, assuming '%s'\n" % (fieldNameMap.find("frameMin"), mf));
             }
             data.add ("frameMin", mf);
         }
-        if (data.find ("frameMax") eq nil)
+        if (data.fieldEmpty ("frameMax"))
         {
-            string mf = data.find ("frameOut");
-            if (mf eq nil) mf = "100";
-            if (data.find("shot") neq nil)
+            string mf = int.max;
+
+            if (! data.fieldEmpty("shot"))
             {
-                print ("WARNING: missing frameMax (%s) field, assuming '%s'\n" % (fieldNameMap.find("frameMax"), mf));
+                print ("INFO: missing frameMax (%s) field, assuming '%s'\n" % (fieldNameMap.find("frameMax"), mf));
             }
             data.add ("frameMax", mf);
         }
-        if (data.find ("frameIn") eq nil)
+        if (data.fieldEmpty ("frameIn"))
         {
             string mf = data.find ("frameMin");
-            if (data.find("shot") neq nil)
+
+            if (! data.fieldEmpty("shot"))
             {
                 print ("WARNING: missing frameIn (%s) field, assuming '%s'\n" % (fieldNameMap.find("frameIn"), mf));
             }
             data.add ("frameIn", mf);
         }
-        if (data.find ("frameOut") eq nil)
+        if (data.fieldEmpty ("frameOut"))
         {
             string mf = data.find ("frameMax");
-            if (data.find("shot") neq nil)
+
+            if (! data.fieldEmpty("shot"))
             {
                 print ("WARNING: missing frameOut (%s) field, assuming '%s'\n" % (fieldNameMap.find("frameOut"), mf));
             }
+
             data.add ("frameOut", mf);
+        }
+
+        let types = mediaTypes();
+
+        for_each (t; types)
+        {
+            let pa = "mt_" + t + "_aspect",
+                hs = "mt_" + t + "_hasSlate";
+
+            if (data.fieldEmpty(pa)) data.add(pa, "0.0");
+            if (data.fieldEmpty(hs)) data.add(hs, "true");
+
+            //
+            //  Swap backslashes for "Qt-standard" forward slashes in media
+            //  paths.  Among other things, this can mess up writing of session
+            //  files.
+            
+            let media = data.find("mt_" + t);
+
+            if (media neq nil) data.add("mt_" + t, regex.replace("\\\\", media, "/"));
         }
     }
 }
