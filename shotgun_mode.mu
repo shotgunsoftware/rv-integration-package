@@ -503,13 +503,7 @@ class: ShotgunMinorMode : MinorMode
 
     method: mediaIsMovie (bool; string m)
     {
-        //  XXX need some better way that encompasses mp4, avi, etc.
-        let re = regex ("\\.mov$"),
-            parts = re.smatch(m);
-
-        if (parts neq nil) return true;
-
-        return false;
+        return (commands.fileKind(m) == commands.MovieFileKind);
     }
 
     method: mediaTypeFallback (string; string mediaType, StringMap info)
