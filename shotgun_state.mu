@@ -604,46 +604,33 @@ class: ShotgunState
 
     method: collectLatestInfo (void; StringMap[] infos, string department, (void; StringMap[]) afterFunc)
     {
+	deb ("collectLatestInfo\n");
         [Value] conditionList;
+	bool getAtLeastOneVersion = false;
         for_each (info; infos) 
         {
-            let sh = info.find("shot");
-            let as = info.find("asset");
-            if (sh neq nil)
-            {
-                let (name, t, id) = shotgun_fields.extractEntityValueParts(sh);
+	    let ln = info.find("link");
+	    deb ("    ln %s\n" % ln);
+	    if (ln eq nil) continue;
+	    
+	    let (name, t, id) = shotgun_fields.extractEntityValueParts(ln);
 
-                Value shotStruct = Struct ([
-                    ("id", Int(id)),
-                    ("type", String("Shot"))
-                ]);
-                Value singleVersionCondition = Struct ([
-                    ("path", String("entity")),
-                    ("relation", String("is")),
-                    ("values", Array([ shotStruct ]))
-                ]);
+	    Value linkStruct = Struct ([
+		("id", Int(id)),
+		("type", String(t))
+	    ]);
+	    Value singleVersionCondition = Struct ([
+		("path", String("entity")),
+		("relation", String("is")),
+		("values", Array([ linkStruct ]))
+	    ]);
 
-                conditionList = singleVersionCondition : conditionList;
-            }
-            else
-            if (as neq nil)
-            {
-                let (name, t, id) = shotgun_fields.extractEntityValueParts(as);
+	    conditionList = singleVersionCondition : conditionList;
 
-                Value assetStruct = Struct ([
-                    ("id", Int(id)),
-                    ("type", String("Asset"))
-                ]);
-                Value singleVersionCondition = Struct ([
-                    ("path", String("entity")),
-                    ("relation", String("is")),
-                    ("values", Array([ assetStruct ]))
-                ]);
-
-                conditionList = singleVersionCondition : conditionList;
-            }
-            else throw exception ("ShotgunState: version is of neither asset nor shot");
+	    getAtLeastOneVersion = true;
         }
+	if (!getAtLeastOneVersion) return;
+
         Value condition = Array(conditionList);
 
         _shotgunServer.find(

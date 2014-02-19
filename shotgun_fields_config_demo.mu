@@ -104,7 +104,7 @@ function: fieldDescriptors((string, string, string, string, string, bool)[]; )
     ("shotStatus",         "Shot Status",   "sg_status_list",     "status_list", "Shot",    false),
     ("assetStatus",        "Asset Status",  "sg_status_list",     "status_list", "Asset",   false),
     ("userEmail",          "Artist Email",  "email",              "text",        "HumanUser",false),
-    ("department",         "Department",    "sg_department",      "text",        "Version", false)
+    ("department",         "Department",    "sg_department",      "text",        "Version", false),
     ("flagged",            "Flagged",       "flagged",            "checkbox",    "Version", false)
     };
 
