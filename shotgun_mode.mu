@@ -79,10 +79,11 @@ class: ShotgunMinorMode : MinorMode
         PrefLoadRangeCut      := 2;
         PrefLoadRangeNoPref   := 3;
 
-        PrefCompareOpTiled    := 0;
-        PrefCompareOpOverWipe := 1;
-        PrefCompareOpDiff     := 2;
-        PrefCompareOpNoPref   := 3;
+        PrefCompareOpTiled       := 0;
+        PrefCompareOpOverWipe    := 1;
+        PrefCompareOpReplaceWipe := 4;
+        PrefCompareOpDiff        := 2;
+        PrefCompareOpNoPref      := 3;
 
         int loadAudio;
         int loadRange;
@@ -1040,6 +1041,12 @@ class: ShotgunMinorMode : MinorMode
                 setStringProperty("#RVStack.composite.type", string[]{"over"});
                 _postProgLoadTurnOnWipes = true;
             }
+            else if (p == Prefs.PrefCompareOpReplaceWipe)
+            {
+                setViewNode("defaultStack");
+                setStringProperty("#RVStack.composite.type", string[]{"replace"});
+                _postProgLoadTurnOnWipes = true;
+            }
             else if (p == Prefs.PrefCompareOpDiff)
             {
                 setViewNode("defaultStack");
@@ -1746,6 +1753,8 @@ class: ShotgunMinorMode : MinorMode
                 setCompareOp(Prefs.PrefCompareOpTiled,), nil, isCompareOp(Prefs.PrefCompareOpTiled)},
             {"Over, With Wipes",
                 setCompareOp(Prefs.PrefCompareOpOverWipe,), nil, isCompareOp(Prefs.PrefCompareOpOverWipe)},
+            {"Replace, With Wipes",
+                setCompareOp(Prefs.PrefCompareOpReplaceWipe,), nil, isCompareOp(Prefs.PrefCompareOpReplaceWipe)},
             {"Difference",
                 setCompareOp(Prefs.PrefCompareOpDiff,), nil, isCompareOp(Prefs.PrefCompareOpDiff)},
             {"_", nil},
