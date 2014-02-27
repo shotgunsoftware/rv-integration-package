@@ -45,6 +45,8 @@ class: ShotgunInfo : Widget
 
     method: render (void; Event event)
     {
+        updatePixelInfo(nil);
+
         State state = data();
 
         let pinfo   = state.pixelInfo,

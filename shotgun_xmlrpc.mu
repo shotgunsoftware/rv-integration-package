@@ -407,7 +407,7 @@ point.
 
 function: call (void; 
                 string url,
-                string name, 
+                string name,
                 [Value] params,
                 ReturnFunc rvalFunc)
 {
@@ -439,6 +439,9 @@ function: call (void;
         catch (exception exc)
         {
             print("ERROR: XML-RPC: Parsing Failed: %s\n" % exc);
+            print("DEBUG: url = %s\n" % url);
+            print("DEBUG: name = %s\n" % name);
+            print("DEBUG: params = %s\n" % params);
             print("DEBUG: Value = %s\n" % v);
             print("DEBUG: XML = %s\n" % event.contents());
         }

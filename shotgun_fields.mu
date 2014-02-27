@@ -292,9 +292,25 @@ function: mediaTypes (string[]; )
 
 function: mediaTypePathEmpty (bool; string mediaType, StringMap info)
 {
-    let name = "mt_" + mediaType;
+    let name = "mt_" + mediaType,
+        ret = true;
 
-    return info.fieldEmpty (name);
+    string path = info.find (name, true);
+
+    if (path neq nil && path != "")
+    { 
+        path = extractLocalPathValue(path); 
+
+        //
+        //  existingFiles doesn't know about %vV.
+        //
+        if (regex("%v|%V").match(path)) ret = false;
+        else
+        {
+            ret = (commands.existingFilesInSequence(path).size() == 0);
+        }
+    } 
+    return ret;
 }
 
 function: mediaTypePath (string; string mediaType, StringMap info)

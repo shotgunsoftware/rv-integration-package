@@ -79,10 +79,11 @@ class: ShotgunMinorMode : MinorMode
         PrefLoadRangeCut      := 2;
         PrefLoadRangeNoPref   := 3;
 
-        PrefCompareOpTiled    := 0;
-        PrefCompareOpOverWipe := 1;
-        PrefCompareOpDiff     := 2;
-        PrefCompareOpNoPref   := 3;
+        PrefCompareOpTiled       := 0;
+        PrefCompareOpOverWipe    := 1;
+        PrefCompareOpReplaceWipe := 4;
+        PrefCompareOpDiff        := 2;
+        PrefCompareOpNoPref      := 3;
 
         int loadAudio;
         int loadRange;
@@ -119,6 +120,7 @@ class: ShotgunMinorMode : MinorMode
             writeSetting ("Shotgun", "department", SettingsValue.String(department));
             writeSetting ("Shotgun", "configStyle", SettingsValue.String(configStyle));
             writeSetting ("Shotgun", "drawInfoOnPresentation", SettingsValue.Bool(drawInfoOnPresentation));
+            deb ("writing prefs shotgunUser %s done\n" % shotgunUser);
         }
 
         method: readPrefs (void; )
@@ -503,33 +505,30 @@ class: ShotgunMinorMode : MinorMode
 
     method: mediaIsMovie (bool; string m)
     {
-        //  XXX need some better way that encompasses mp4, avi, etc.
-        let re = regex ("\\.mov$"),
-            parts = re.smatch(m);
-
-        if (parts neq nil) return true;
-
-        return false;
+	//  Thanks to Niklas Aldergren for below !
+	return (fileKind(m) == MovieFileKind);
     }
 
     method: mediaTypeFallback (string; string mediaType, StringMap info)
     {
         if (shotgun_fields.mediaTypePathEmpty (mediaType, info))
         {
-            let types = shotgun_fields.mediaTypes();
+            let types = shotgun_fields.mediaTypes(),
+                newType = "";
             for_each (t; types)
             {
                 if (! shotgun_fields.mediaTypePathEmpty (t, info))
                 {
-                    mediaType = t;
+                    newType = t;
                     break;
                 }
             }
-            if (mediaType != _prefs.loadMedia)
+            if (newType != "")
             {
-                    print ("ERROR: no '%s' media, switching to '%s'\n" % (_prefs.loadMedia, mediaType)); 
+                print ("INFO: no '%s' media, switching to '%s'\n" % (_prefs.loadMedia, mediaType)); 
+                mediaType = newType;
             }
-            else print ("ERROR: Version has no media!\n"); 
+            else print ("ERROR: Version %s has no media!\n" % info.find("id"));
         }
         return mediaType;
     }
@@ -585,24 +584,32 @@ class: ShotgunMinorMode : MinorMode
 
         try 
         {
+            //
+            //  To make sure we get stereo when we want it.
+            //
             setStringProperty (sourceName + ".request.stereoViews", string[] {}, true);
 
-            //
-            //  We had to swap in this "set the media to empty then use addToSource"
-            //  path because in RV prior to 3.10.11, paths added via setSourceMedia were
-            //  not processed for %V.  But just discovered that paths added via addToSource
-            //  do not trigger a new-source event !  So color processing etc. does not work.
-            //  Since the %v thing is fixed, go back to setSourceMedia.
-            //
-            //setSourceMedia (sname, string[] { });
-            //addToSource (sname,  newMedia, "shotgun");
             setSourceMedia (sourceName, string[] { newMedia }, "shotgun");
 
+            //
+            //  Make sure we flush any cached audio.
+            //
+            let m = audioCacheMode();
+            setAudioCacheMode(CacheGreedy);
+            setAudioCacheMode(CacheBuffer);
+            setAudioCacheMode(m);
+
+            //
+            //  Set media type, rangeOffset (frame mapping), pixel aspect ratio.
+            //
             _setMediaType (mediaType, sourceName);
             setIntProperty (sourceName + ".group.rangeOffset", int[] {ro});
-            let paProp = regex.replace("_source", sourceName, "_transform2D") + ".pixel.aspectRatio";
+            let paNode = regex.replace("_source", sourceName, "_tolinPipeline_1"),
+                warp = newNode ("RVLensWarp", paNode),
+                paProp = paNode + ".warp.pixelAspectRatio";
+            newProperty(paProp, FloatType, 1);
             deb ("    setting %s to %s\n" % (paProp, float[] {pa}));
-            setFloatProperty (paProp, float[] {pa});
+            setFloatProperty (paProp, float[] {pa}, true);
         }
         catch (object obj)
         {
@@ -730,45 +737,33 @@ class: ShotgunMinorMode : MinorMode
         StringMap[] latestInfos = StringMap[]();
         deb ("    %s infos, %s collectedInfos, department %s, sourceNames %s\n" %
                 (infos.size(), collectedInfos.size(), department, sourceNames));
-        for_each (info; infos)
+        for (int ind = 0; ind < infos.size(); ++ind)
         {
-            let sh = info.find("shot"),
-                as = info.find("asset"),
-                latestID = info.findInt("id"),
-                latestDeptID = latestID,
-                id = 0,
-                deptMatch = false;
+            let info = infos[ind],
+	        link = info.find("link");
 
-            string linkType = nil;
-
-            deb ("    sh %s (sh parts %s) as %s latestID %s\n" % (sh, shotgun_fields.extractEntityValueParts(sh), as, latestID));
-            if (sh neq nil)
+            if (link eq nil)
             {
-                deb ("    sh neq nil\n");
-                id = shotgun_fields.extractEntityValueParts(sh)._2;
-                deb ("    setting linkType\n");
-                linkType = "shot";
-                deb ("    done setting linkType\n");
-            }
-            else 
-            if (as neq nil)
-            {
-                deb ("    as neq nil\n");
-                id = shotgun_fields.extractEntityValueParts(as)._2;
-                linkType = "asset";
-            }
-            else 
-            {
-                deb ("continuing\n");
+                //
+                //  This info has no linked entiry, so the "latest" version is
+                //  meaningless, so re-use current version.
+                //
+                deb ("    version '%s' has no link\n" % info.findString("name"));
+                latestInfos.push_back(info);
                 continue;
             }
+
+	    let (linkName, linkType, linkID) = shotgun_fields.extractEntityValueParts(info.find("link")),
+                latestID = info.findInt("id"),
+                latestDeptID = latestID,
+                deptMatch = false;
 
             deb ("    linkType %s\n" % linkType);
             StringMap latestInfo = nil, latestDeptInfo = nil;
 
             for_each (ci; collectedInfos)
             {
-                let ciLink = ci.find(linkType);
+                let ciLink = ci.find("link");
                 if (ciLink eq nil) continue;
 
                 let (_, __, ciLinkID) = shotgun_fields.extractEntityValueParts(ciLink),
@@ -778,7 +773,7 @@ class: ShotgunMinorMode : MinorMode
                 try { dept = ci.findString("department");} catch(...) {;};
 
                 deb ("        ciLinkID %s ciID %s dept %s\n" % (ciLinkID, ciID, dept));
-                if (ciLinkID == id)
+                if (ciLinkID == linkID)
                 {
                     if (ciID >= latestID)
                     {
@@ -1046,6 +1041,12 @@ class: ShotgunMinorMode : MinorMode
                 setStringProperty("#RVStack.composite.type", string[]{"over"});
                 _postProgLoadTurnOnWipes = true;
             }
+            else if (p == Prefs.PrefCompareOpReplaceWipe)
+            {
+                setViewNode("defaultStack");
+                setStringProperty("#RVStack.composite.type", string[]{"replace"});
+                _postProgLoadTurnOnWipes = true;
+            }
             else if (p == Prefs.PrefCompareOpDiff)
             {
                 setViewNode("defaultStack");
@@ -1124,9 +1125,10 @@ class: ShotgunMinorMode : MinorMode
             try 
             {
                 let user  = info.find("user"),
-                    name  = shotgun_fields.extractEntityValueParts(user)._0;
+                    name  = shotgun_fields.extractEntityValueParts(user)._0,
+                    userType = shotgun_fields.extractEntityValueParts(user)._1;
 
-                fullName = ""","addressings_to":[{"name":"%s"}]""" % name;
+                fullName = ""","addressings_to":[{"name":"%s","type":"%s"}]""" % (name, userType);
             }
             catch (...) {;}
 
@@ -1751,6 +1753,8 @@ class: ShotgunMinorMode : MinorMode
                 setCompareOp(Prefs.PrefCompareOpTiled,), nil, isCompareOp(Prefs.PrefCompareOpTiled)},
             {"Over, With Wipes",
                 setCompareOp(Prefs.PrefCompareOpOverWipe,), nil, isCompareOp(Prefs.PrefCompareOpOverWipe)},
+            {"Replace, With Wipes",
+                setCompareOp(Prefs.PrefCompareOpReplaceWipe,), nil, isCompareOp(Prefs.PrefCompareOpReplaceWipe)},
             {"Difference",
                 setCompareOp(Prefs.PrefCompareOpDiff,), nil, isCompareOp(Prefs.PrefCompareOpDiff)},
             {"_", nil},
@@ -1851,12 +1855,13 @@ class: ShotgunMinorMode : MinorMode
         {
             if (v == " ") v = "";
             _prefs.serverURL = v;
-            _prefs.writePrefs();
-            extra_commands.displayFeedback("New Server: " + v);
         }
         redraw();
         _shotgunState._serverURL = _prefs.serverURL;
         _shotgunState.connectToServer();
+        _prefs.serverURL = _shotgunState._serverURL;
+        _prefs.writePrefs();
+        if (v != "") extra_commands.displayFeedback("New Server: " + v);
     }
 
     method: setServerURL(void; Event e)
@@ -2110,6 +2115,13 @@ class: ShotgunMinorMode : MinorMode
                     let t = _postProgLoadInfos[i].find ("internalMediaType", true);
 
                     _setMediaType (if (t neq nil) then t else _prefs.loadMedia, postProgLoadSources[i]); 
+                }
+                catch (...) { ; }
+                try 
+                { 
+                    let n = _postProgLoadInfos[i].find ("name", true);
+
+		    if (n neq nil) extra_commands.setUIName (nodeGroup(postProgLoadSources[i]), n);
                 }
                 catch (...) { ; }
             }
